@@ -1,254 +1,248 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Gift, Settings, User, Sparkles, Snowflake, Calendar, ShieldCheck, Trash2, LogIn, Wallet } from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { 
+  getAuth, 
+  signInAnonymously, 
+  onAuthStateChanged 
+} from 'firebase/auth';
+import { 
+  getFirestore, 
+  doc, 
+  setDoc, 
+  getDoc, 
+  collection, 
+  onSnapshot, 
+  updateDoc, 
+  addDoc,
+  serverTimestamp 
+} from 'firebase/firestore';
+import { 
+  Snowflake, Gift, User, Settings, Trophy, Clock, LayoutDashboard, ChevronRight
+} from 'lucide-react';
+
+// ---------------------------------------------------------
+// 1. 請將下方替換為您在 Firebase Console 獲取的 Config 內容
+// ---------------------------------------------------------
+const firebaseConfig = {
+  apiKey: "您的-API-KEY",
+  authDomain: "您的-PROJECT-ID.firebaseapp.com",
+  projectId: "您的-PROJECT-ID",
+  storageBucket: "您的-PROJECT-ID.firebasestorage.app",
+  messagingSenderId: "您的-SENDER-ID",
+  appId: "您的-APP-ID"
+};
+
+// 初始化 Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = 'corin-beauty-app'; // 您的專案代碼
 
 const App = () => {
-  // --- 狀態管理 (暫時改為本地模式) ---
   const [user, setUser] = useState(null);
-  const [view, setView] = useState('home'); // 'home', 'login', 'scratch', 'admin', 'profile'
-  const [prizes, setPrizes] = useState([
-    { id: 1, name: '全腿除毛 5 折券', weight: 10 },
-    { id: 2, name: '腋下除毛 體驗價 $399', weight: 30 },
-    { id: 3, name: '保濕導入護理乙次', weight: 20 },
-    { id: 4, name: '日式冰肌 85 折優惠', weight: 40 },
-  ]);
-  const [scratchResult, setScratchResult] = useState(null);
-  const [canScratch, setCanScratch] = useState(true);
-  const [history, setHistory] = useState([]);
-  const [timeLeft, setTimeLeft] = useState("");
+  const [view, setView] = useState('home'); 
+  const [prizes, setPrizes] = useState([]);
+  const [userProfile, setUserProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [lastPrize, setLastPrize] = useState(null);
 
-  // 模擬登入與本地資料讀取
+  // 登入與權限初始化
   useEffect(() => {
-    const savedUser = localStorage.getItem('mock_user');
-    if (savedUser) {
-      const u = JSON.parse(savedUser);
+    const initAuth = async () => {
+      try {
+        await signInAnonymously(auth);
+      } catch (error) {
+        console.error("Firebase Auth 錯誤:", error.message);
+      }
+    };
+    initAuth();
+
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
-      loadLocalData(u.id);
-    }
+      if (u) fetchUserProfile(u.uid);
+      else setLoading(false);
+    });
+    return () => unsubscribe();
   }, []);
 
-  const loadLocalData = (userId) => {
-    const savedHistory = JSON.parse(localStorage.getItem(`history_${userId}`) || '[]');
-    setHistory(savedHistory);
-    
-    // 檢查冷卻時間
-    const lastDate = localStorage.getItem(`lastScratch_${userId}`);
-    const today = new Date().toDateString();
-    setCanScratch(lastDate !== today);
-  };
+  // 監聽獎項列表
+  useEffect(() => {
+    if (!user) return;
+    const prizesCol = collection(db, 'artifacts', appId, 'public', 'data', 'prizes');
+    const unsubscribe = onSnapshot(prizesCol, (snapshot) => {
+      const pList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      if (pList.length === 0) {
+        setupDefaultPrizes(); // 如果沒資料，自動建立預設獎項
+      } else {
+        setPrizes(pList);
+      }
+    });
+    return () => unsubscribe();
+  }, [user]);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    const mockUser = { id: 'user_local', name: '測試賓客', points: 100 };
-    setUser(mockUser);
-    localStorage.setItem('mock_user', JSON.stringify(mockUser));
-    loadLocalData(mockUser.id);
-    setView('home');
-  };
-
-  const getRandomPrize = () => {
-    const totalWeight = prizes.reduce((acc, p) => acc + p.weight, 0);
-    let random = Math.random() * totalWeight;
-    for (const prize of prizes) {
-      if (random < prize.weight) return prize;
-      random -= prize.weight;
+  // 自動建立初始獎項函數
+  const setupDefaultPrizes = async () => {
+    const defaultPrizes = [
+      { name: '冰肌除毛 5 折券', weight: 30 },
+      { name: '腋下體驗價 $399', weight: 40 },
+      { name: '保濕精華液乙瓶', weight: 10 },
+      { name: '現金折抵 $100', weight: 20 }
+    ];
+    const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'prizes');
+    for (let p of defaultPrizes) {
+      await addDoc(colRef, p);
     }
-    return prizes[prizes.length - 1];
   };
 
-  const handleScratchComplete = () => {
+  const fetchUserProfile = async (uid) => {
+    const userDoc = doc(db, 'artifacts', appId, 'users', uid, 'profile', 'info');
+    const snap = await getDoc(userDoc);
+    if (snap.exists()) {
+      setUserProfile(snap.data());
+    } else {
+      const initialProfile = { lastScratchDate: null, totalWins: 0, name: `訪客 ${uid.slice(0,4)}` };
+      await setDoc(userDoc, initialProfile);
+      setUserProfile(initialProfile);
+    }
+    setLoading(false);
+  };
+
+  const handleScratchComplete = async (prize) => {
+    if (!user) return;
     const today = new Date().toDateString();
-    localStorage.setItem(`lastScratch_${user.id}`, today);
+    const userDoc = doc(db, 'artifacts', appId, 'users', user.uid, 'profile', 'info');
     
-    const newRecord = {
-      id: Date.now(),
-      date: new Date().toLocaleString(),
-      prize: scratchResult.name,
-      used: false
-    };
-    const newHistory = [newRecord, ...history];
-    setHistory(newHistory);
-    localStorage.setItem(`history_${user.id}`, JSON.stringify(newHistory));
-    setCanScratch(false);
+    await updateDoc(userDoc, {
+      lastScratchDate: today,
+      totalWins: (userProfile.totalWins || 0) + 1
+    });
+
+    await addDoc(collection(db, 'artifacts', appId, 'users', user.uid, 'history'), {
+      prizeName: prize.name,
+      timestamp: serverTimestamp()
+    });
+
+    setUserProfile(prev => ({ ...prev, lastScratchDate: today, totalWins: (prev.totalWins || 0) + 1 }));
   };
 
-  // --- UI 組件 ---
+  if (loading) return <div className="h-screen flex items-center justify-center bg-rose-50 text-pink-500 font-bold">連線中...</div>;
+
   return (
-    <div className="min-h-screen bg-rose-50 font-sans text-gray-800 pb-24">
-      {/* 導航欄 */}
-      <nav className="bg-white/80 backdrop-blur-md sticky top-0 z-50 px-6 py-4 flex justify-between items-center shadow-sm">
+    <div className="min-h-screen bg-rose-50 text-slate-800 pb-20">
+      <header className="bg-white/80 backdrop-blur-md sticky top-0 z-40 px-6 py-4 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-2" onClick={() => setView('home')}>
-          <div className="bg-rose-400 p-1.5 rounded-xl shadow-lg shadow-rose-100">
-            <Snowflake className="text-white w-5 h-5" />
-          </div>
-          <span className="font-bold text-xl tracking-tight text-rose-600">PureIce</span>
+          <div className="bg-pink-500 p-1.5 rounded-lg"><Snowflake className="text-white w-5 h-5" /></div>
+          <h1 className="text-xl font-bold text-pink-600">Corin Beauty</h1>
         </div>
-        <div className="flex gap-4">
-          <button onClick={() => setView('admin')} className="text-gray-300 hover:text-rose-400"><Settings className="w-6 h-6" /></button>
-          {user && <button onClick={() => setView('profile')} className="text-gray-300 hover:text-rose-400"><User className="w-6 h-6" /></button>}
-        </div>
-      </nav>
+        <button onClick={() => setView('profile')} className="p-2 text-slate-400"><User className="w-6 h-6" /></button>
+      </header>
 
       <main className="max-w-md mx-auto p-5">
-        {!user && view !== 'admin' ? (
-          <div className="pt-20 text-center animate-in fade-in zoom-in duration-500">
-            <h2 className="text-3xl font-bold mb-4">歡迎光臨</h2>
-            <p className="text-gray-400 mb-10">請先登入以開啟除毛驚喜</p>
-            <button onClick={handleLogin} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold shadow-xl">模擬快捷登入</button>
+        {view === 'home' && (
+          <div className="space-y-6">
+            <div className="bg-white rounded-3xl p-8 text-center shadow-xl border border-pink-50">
+              <Trophy className="text-pink-500 w-12 h-12 mx-auto mb-4" />
+              <h3 className="text-xl font-bold">幸運刮刮樂</h3>
+              <p className="text-sm text-slate-400 mt-2 mb-6">歡迎 {userProfile?.name}</p>
+              
+              {userProfile?.lastScratchDate !== new Date().toDateString() ? (
+                <button 
+                  onClick={() => {
+                    const totalWeight = prizes.reduce((acc, p) => acc + (p.weight || 0), 0);
+                    let rand = Math.random() * totalWeight;
+                    let selected = prizes[0];
+                    for (const p of prizes) {
+                      if (rand < p.weight) { selected = p; break; }
+                      rand -= p.weight;
+                    }
+                    setLastPrize(selected);
+                    setView('scratch');
+                  }}
+                  className="w-full bg-pink-600 text-white py-4 rounded-2xl font-bold shadow-lg"
+                >
+                  開始刮獎
+                </button>
+              ) : (
+                <div className="bg-slate-50 text-slate-400 py-4 rounded-2xl">今日已刮獎，明天再來！</div>
+              )}
+            </div>
           </div>
-        ) : (
-          <>
-            {view === 'home' && (
-              <div className="space-y-6">
-                <div className="bg-slate-900 rounded-[2.5rem] p-8 text-white shadow-2xl relative overflow-hidden">
-                  <div className="relative z-10">
-                    <p className="text-rose-300 text-xs font-bold mb-1 uppercase tracking-widest">Daily Bonus</p>
-                    <h3 className="text-2xl font-bold mb-6">幸運刮刮樂</h3>
-                    {canScratch ? (
-                      <button 
-                        onClick={() => { setScratchResult(getRandomPrize()); setView('scratch'); }}
-                        className="bg-rose-500 px-8 py-3 rounded-xl font-bold shadow-lg shadow-rose-500/30 active:scale-95 transition-all"
-                      >
-                        立即刮獎
-                      </button>
-                    ) : (
-                      <div className="bg-white/10 backdrop-blur px-4 py-3 rounded-xl inline-block">
-                        <p className="text-[10px] opacity-60">今日已參加過</p>
-                        <p className="text-lg font-bold">明天再來試手氣</p>
-                      </div>
-                    )}
-                  </div>
-                  <Gift className="absolute -right-4 -bottom-4 text-white/5 w-32 h-32" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white p-5 rounded-3xl shadow-sm border border-rose-50">
-                    <p className="text-xs text-gray-400">累積次數</p>
-                    <p className="text-xl font-bold">{history.length} 次</p>
-                  </div>
-                  <div className="bg-white p-5 rounded-3xl shadow-sm border border-rose-50" onClick={() => setView('profile')}>
-                    <p className="text-xs text-gray-400">可用優惠</p>
-                    <p className="text-xl font-bold text-rose-500">{history.filter(h => !h.used).length} 件</p>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-rose-50 space-y-4">
-                  <h4 className="font-bold flex items-center gap-2"><Sparkles className="w-4 h-4 text-yellow-400" /> 店長推薦</h4>
-                  <div className="aspect-video bg-rose-100 rounded-2xl overflow-hidden relative">
-                    <div className="absolute inset-0 flex items-center justify-center text-rose-300 font-bold italic">Promo Image</div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {view === 'scratch' && scratchResult && (
-              <div className="text-center py-10 space-y-8 animate-in zoom-in-95">
-                <h2 className="text-2xl font-bold">刮開揭曉驚喜</h2>
-                <div className="relative w-full aspect-video bg-white rounded-[2rem] shadow-inner border-4 border-white overflow-hidden flex items-center justify-center">
-                  <div className="text-rose-500 font-bold text-2xl">{scratchResult.name}</div>
-                  <ScratchCanvas onComplete={handleScratchComplete} />
-                </div>
-                <button onClick={() => setView('home')} className="w-full text-gray-400 font-bold">返回首頁</button>
-              </div>
-            )}
-
-            {view === 'profile' && (
-              <div className="space-y-6">
-                <h2 className="text-2xl font-bold flex items-center gap-2">
-                  <Wallet className="text-rose-400" /> 我的優惠券
-                </h2>
-                <div className="space-y-4">
-                  {history.length > 0 ? history.map((h) => (
-                    <div key={h.id} className="bg-white p-5 rounded-[2rem] border border-rose-50 shadow-sm flex justify-between items-center">
-                      <div>
-                        <div className="font-bold text-slate-800">{h.prize}</div>
-                        <div className="text-[10px] text-gray-400 mt-1">{h.date}</div>
-                      </div>
-                      <div className="bg-green-50 text-green-600 text-[10px] px-2 py-1 rounded-full font-bold">未使用</div>
-                    </div>
-                  )) : (
-                    <div className="text-center py-20 text-gray-300">尚無紀錄，快去刮一張吧！</div>
-                  )}
-                </div>
-                <button onClick={() => setView('home')} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold mt-10">返回</button>
-              </div>
-            )}
-
-            {view === 'admin' && (
-              <div className="bg-white rounded-3xl p-6 shadow-sm space-y-4">
-                <h2 className="text-xl font-bold mb-4">測試模式：獎項預覽</h2>
-                {prizes.map(p => (
-                  <div key={p.id} className="p-4 border border-rose-50 rounded-2xl flex justify-between">
-                    <span>{p.name}</span>
-                    <span className="text-rose-400 font-bold">{p.weight}%</span>
-                  </div>
-                ))}
-                <button onClick={() => setView('home')} className="w-full bg-slate-900 text-white py-4 rounded-2xl font-bold mt-6">返回</button>
-              </div>
-            )}
-          </>
         )}
-      </main>
 
-      {/* 底部導航 (Mobile Only) */}
-      {user && view !== 'scratch' && (
-        <div className="fixed bottom-6 left-6 right-6 h-16 bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-white/50 flex justify-around items-center px-4 z-40">
-          <button onClick={() => setView('home')} className={`flex flex-col items-center gap-1 ${view === 'home' ? 'text-rose-500' : 'text-gray-300'}`}>
-            <Snowflake className="w-5 h-5" /><span className="text-[9px] font-bold">首頁</span>
-          </button>
-          <button onClick={() => setView('profile')} className={`flex flex-col items-center gap-1 ${view === 'profile' ? 'text-rose-500' : 'text-gray-300'}`}>
-            <Wallet className="w-5 h-5" /><span className="text-[9px] font-bold">口袋</span>
-          </button>
-          <button onClick={() => { localStorage.clear(); window.location.reload(); }} className="flex flex-col items-center gap-1 text-gray-300">
-            <Trash2 className="w-5 h-5" /><span className="text-[9px] font-bold">清除</span>
-          </button>
-        </div>
-      )}
+        {view === 'scratch' && lastPrize && (
+          <div className="text-center space-y-8 pt-10">
+            <h2 className="text-2xl font-bold">刮開驚喜</h2>
+            <div className="relative w-full aspect-video bg-white rounded-3xl shadow-inner flex items-center justify-center overflow-hidden">
+                <div className="text-pink-600 font-bold text-3xl">{lastPrize.name}</div>
+                <ScratchCanvas onComplete={() => handleScratchComplete(lastPrize)} />
+            </div>
+            <button onClick={() => setView('home')} className="text-slate-400 font-bold">返回</button>
+          </div>
+        )}
+
+        {view === 'profile' && <ProfileView user={user} onBack={() => setView('home')} />}
+      </main>
     </div>
   );
 };
 
-// 刮刮組件
 const ScratchCanvas = ({ onComplete }) => {
   const canvasRef = useRef(null);
-  const [isDone, setIsDone] = useState(false);
+  const [done, setDone] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if(!canvas) return;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#E2E8F0'; // 灰色遮罩
+    ctx.fillStyle = '#C0C0C0';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#94A3B8';
-    ctx.font = 'bold 20px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('刮開探索驚喜', canvas.width/2, canvas.height/2 + 7);
-
+    
     const scratch = (e) => {
       const rect = canvas.getBoundingClientRect();
-      const x = (e.clientX || (e.touches && e.touches[0].clientX)) - rect.left;
-      const y = (e.clientY || (e.touches && e.touches[0].clientY)) - rect.top;
+      const x = (e.clientX || e.touches?.[0].clientX) - rect.left;
+      const y = (e.clientY || e.touches?.[0].clientY) - rect.top;
       ctx.globalCompositeOperation = 'destination-out';
-      ctx.beginPath(); ctx.arc(x, y, 25, 0, Math.PI * 2); ctx.fill();
-
+      ctx.beginPath(); ctx.arc(x, y, 25, 0, Math.PI*2); ctx.fill();
+      
       const pixels = ctx.getImageData(0,0,canvas.width,canvas.height).data;
-      let trans = 0;
-      for(let i=3; i<pixels.length; i+=4) if(pixels[i]===0) trans++;
-      if(trans > (pixels.length/4)*0.5 && !isDone) {
-        setIsDone(true);
+      let clear = 0;
+      for(let i=3; i<pixels.length; i+=4) if(pixels[i]===0) clear++;
+      if(clear > (pixels.length/4)*0.5 && !done) {
+        setDone(true);
         onComplete();
       }
     };
 
-    const move = (e) => { 
-      if(e.type === 'touchmove') e.preventDefault();
-      if(e.buttons === 1 || e.type === 'touchmove') scratch(e); 
-    };
+    const move = (e) => { if(e.buttons === 1 || e.touches) scratch(e); };
     canvas.addEventListener('mousemove', move);
-    canvas.addEventListener('touchmove', move, { passive: false });
+    canvas.addEventListener('touchmove', move);
     return () => { canvas.removeEventListener('mousemove', move); canvas.removeEventListener('touchmove', move); };
-  }, [isDone]);
+  }, [done]);
 
-  return !isDone ? <canvas ref={canvasRef} width={400} height={225} className="absolute inset-0 w-full h-full cursor-crosshair touch-none" /> : null;
+  return !done ? <canvas ref={canvasRef} width={400} height={225} className="absolute inset-0 w-full h-full cursor-crosshair touch-none" /> : null;
+};
+
+const ProfileView = ({ user, onBack }) => {
+  const [history, setHistory] = useState([]);
+  useEffect(() => {
+    const q = collection(db, 'artifacts', appId, 'users', user.uid, 'history');
+    return onSnapshot(q, (s) => setHistory(s.docs.map(d => d.data())));
+  }, [user]);
+
+  return (
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold">獲獎歷史</h2>
+      <div className="bg-white rounded-3xl p-6 shadow-sm min-h-[300px]">
+        {history.length > 0 ? history.map((h, i) => (
+          <div key={i} className="flex justify-between py-4 border-b last:border-0">
+            <span className="font-bold">{h.prizeName}</span>
+            <span className="text-xs text-slate-400">{h.timestamp?.toDate().toLocaleDateString()}</span>
+          </div>
+        )) : <div className="text-center py-20 text-slate-300">目前尚無獲獎紀錄</div>}
+      </div>
+      <button onClick={onBack} className="w-full text-pink-500 font-bold">返回</button>
+    </div>
+  );
 };
 
 export default App;
