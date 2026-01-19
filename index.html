@@ -2,215 +2,226 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Corin Beauty - 刮刮樂系統</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Corin Beauty - 刮刮樂抽獎</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body {
-            background-color: #fdf2f8;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        /* 禁用長按選取與手勢動作，優化刮刮樂手感 */
+        canvas {
+            touch-action: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+            -ms-user-select: none;
+            user-select: none;
         }
-        .loading-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(255, 255, 255, 0.9);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
+        .scratch-container {
+            position: relative;
+            width: 300px;
+            height: 150px;
+            background: #f3f4f6;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
         }
-        .status-card {
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            padding: 2rem;
-            max-width: 400px;
-            width: 90%;
-            text-align: center;
+        .loading-spinner {
+            border: 3px solid rgba(236, 72, 153, 0.2);
+            border-top: 3px solid #ec4899;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 1s linear infinite;
         }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body>
+<body class="bg-pink-50 min-h-screen flex items-center justify-center p-4">
 
-    <!-- 載入中遮罩 -->
-    <div id="loading" class="loading-overlay">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mb-4"></div>
-        <p class="text-pink-600 font-medium">系統連線中...</p>
-    </div>
-
-    <!-- 主內容區 -->
-    <div id="app" class="hidden min-h-screen p-4 flex flex-col items-center">
-        <header class="w-full max-w-md mb-6">
-            <h1 class="text-2xl font-bold text-pink-600 text-center">Corin Beauty</h1>
-            <p class="text-sm text-gray-500 text-center">專屬刮刮樂獎勵系統</p>
-        </header>
-
-        <!-- 使用者資訊區 -->
-        <div class="status-card" id="user-section">
-            <div id="auth-status" class="mb-4">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800" id="uid-tag">
-                    未登入
-                </span>
-            </div>
-            
-            <div id="profile-content">
-                <p class="text-gray-600 mb-4">正在確認您的會員資料...</p>
-            </div>
-        </div>
-
-        <!-- 錯誤訊息彈窗 (代替 alert) -->
-        <div id="error-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[2000]">
-            <div class="bg-white rounded-lg p-6 max-w-sm w-full">
-                <h3 class="text-lg font-bold text-red-600 mb-2">系統錯誤</h3>
-                <p id="error-message" class="text-gray-600 mb-4"></p>
-                <button onclick="location.reload()" class="w-full bg-pink-500 text-white py-2 rounded-lg">重試</button>
-            </div>
+    <!-- 初始化遮罩 -->
+    <div id="setup-overlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 text-center">
+        <div id="setup-status">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p class="text-pink-600 font-medium">連線至 Corin Beauty 伺服器...</p>
         </div>
     </div>
 
-    <!-- Firebase SDKs -->
+    <!-- 主卡片 -->
+    <div class="bg-white rounded-3xl shadow-xl p-8 w-full max-w-md border border-pink-100">
+        <div class="text-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-800">Corin Beauty</h1>
+            <p class="text-pink-500 font-medium mt-1">✨ 專屬刮刮樂抽獎 ✨</p>
+        </div>
+
+        <div class="flex justify-center">
+            <div class="scratch-container">
+                <!-- 底層結果 -->
+                <div id="prize-content" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+                    <span class="text-gray-400 text-sm mb-1">恭喜您獲得</span>
+                    <span id="prize-text" class="text-xl font-bold text-pink-600">載入中...</span>
+                </div>
+                <!-- 上層刮刮布 -->
+                <canvas id="scratch-canvas" class="absolute inset-0 cursor-pointer"></canvas>
+            </div>
+        </div>
+
+        <div class="mt-6 text-center">
+            <p id="instruction" class="text-sm text-gray-400">請在上方灰色區域刮開獎項</p>
+            <div id="action-area" class="hidden mt-4">
+                <button onclick="window.location.reload()" class="bg-pink-500 text-white px-8 py-2 rounded-full font-bold hover:bg-pink-600 transition-transform active:scale-95 shadow-md">
+                    再抽一次
+                </button>
+            </div>
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-gray-100 text-[10px] text-gray-300 text-center italic">
+            Powered by Corin Beauty App
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
-        // 1. 環境變數讀取
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'corin-beauty-app';
-        
-        // 2. 初始化 Firebase
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        const loadingEl = document.getElementById('loading');
-        const appEl = document.getElementById('app');
-        const profileContent = document.getElementById('profile-content');
-        const uidTag = document.getElementById('uid-tag');
-
-        // 顯示錯誤訊息
-        function showError(msg) {
-            document.getElementById('error-message').innerText = msg;
-            document.getElementById('error-modal').classList.remove('hidden');
-        }
-
-        // 3. 認證流程 (符合 RULE 3)
-        const initAuth = async () => {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Auth Error:", error);
-                showError("無法建立安全連線，請檢查 Firebase 驗證設定。");
-            }
+        // 您提供的 Firebase 設定
+        const firebaseConfig = {
+            apiKey: "AIzaSyB48QgamPtCi6o44ymd-2E1VLCrzWEkM_0",
+            authDomain: "corin-beauty-app.firebaseapp.com",
+            projectId: "corin-beauty-app",
+            storageBucket: "corin-beauty-app.firebasestorage.app",
+            messagingSenderId: "455619263170",
+            appId: "1:455619263170:web:78be5b0ca385458758195b",
+            measurementId: "G-439KCLRJ43"
         };
 
-        // 啟動認證
-        initAuth();
+        let canvas, ctx, isScratched = false;
+        const prizeList = ["療程現折 $200", "保濕面膜一堂", "美肌精華液乙瓶", "首次體驗 8 折"];
 
-        // 4. 監聽認證狀態變更
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                console.log("Authenticated as:", user.uid);
-                uidTag.innerText = `ID: ${user.uid}`;
-                uidTag.classList.replace('bg-gray-100', 'bg-green-100');
-                uidTag.classList.replace('text-gray-800', 'text-green-800');
+        async function startSystem() {
+            const overlay = document.getElementById('setup-overlay');
+            const statusBox = document.getElementById('setup-status');
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                const auth = getAuth(app);
+
+                // 嘗試匿名登入
+                await signInAnonymously(auth);
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        // 隨機選一個獎項
+                        const randomPrize = prizeList[Math.floor(Math.random() * prizeList.length)];
+                        document.getElementById('prize-text').textContent = randomPrize;
+                        
+                        overlay.classList.add('hidden');
+                        initScratch();
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase Error:", error);
+                let errorMsg = "初始化失敗，請檢查網路連線。";
                 
-                // 進入應用程式邏輯
-                startApp(user);
-            } else {
-                loadingEl.classList.remove('hidden');
-                appEl.classList.add('hidden');
+                if (error.code === 'auth/operation-not-allowed') {
+                    errorMsg = "權限錯誤：請在 Firebase 控制台啟用「匿名登入」功能。";
+                }
+
+                statusBox.innerHTML = `
+                    <div class="text-red-500 mb-4">⚠️</div>
+                    <p class="text-gray-700 font-bold">${errorMsg}</p>
+                    <button onclick="location.reload()" class="mt-4 text-xs text-blue-500 underline">點此重試</button>
+                `;
             }
-        });
-
-        // 5. 資料存取邏輯 (符合 RULE 1 & 2)
-        function startApp(user) {
-            loadingEl.classList.add('hidden');
-            appEl.classList.remove('hidden');
-
-            const userId = user.uid;
-            // 指向 private data 路径: /artifacts/{appId}/users/{userId}/{collectionName}/{docId}
-            const profileRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'member');
-
-            // 監聽使用者資料
-            const unsubscribe = onSnapshot(profileRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    renderProfile(data);
-                } else {
-                    renderRegisterForm(userId);
-                }
-            }, (error) => {
-                console.error("Firestore Error:", error);
-                if (error.code === 'permission-denied') {
-                    showError("權限不足：請確認 Firestore Security Rules 是否已發佈。");
-                }
-            });
-
-            // 離開時清理監聽
-            window.addEventListener('unload', () => unsubscribe());
         }
 
-        // 渲染會員資料
-        function renderProfile(data) {
-            profileContent.innerHTML = `
-                <div class="text-left">
-                    <p class="text-lg font-bold text-pink-500">歡迎回來，${data.name}！</p>
-                    <p class="text-sm text-gray-500">電話：${data.phone}</p>
-                    <div class="mt-4 border-t pt-4">
-                        <button class="w-full bg-pink-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-pink-600 transition">
-                            進入刮刮樂中心
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
+        function initScratch() {
+            canvas = document.getElementById('scratch-canvas');
+            ctx = canvas.getContext('2d');
+            
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
 
-        // 渲染註冊表單
-        function renderRegisterForm(userId) {
-            profileContent.innerHTML = `
-                <div class="text-left">
-                    <p class="text-gray-700 font-bold mb-4">首次進入？請填寫基本資料：</p>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="block text-xs text-gray-400">姓名</label>
-                            <input type="text" id="reg-name" class="w-full border-b-2 border-pink-100 focus:border-pink-500 outline-none py-1">
-                        </div>
-                        <div>
-                            <label class="block text-xs text-gray-400">電話</label>
-                            <input type="tel" id="reg-phone" class="w-full border-b-2 border-pink-100 focus:border-pink-500 outline-none py-1">
-                        </div>
-                        <button id="btn-register" class="w-full bg-white border-2 border-pink-500 text-pink-500 font-bold py-2 rounded-lg hover:bg-pink-50">
-                            完成註冊
-                        </button>
-                    </div>
-                </div>
-            `;
+            // 繪製遮蓋層
+            ctx.fillStyle = '#D1D5DB'; // 灰色
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            document.getElementById('btn-register').onclick = async () => {
-                const name = document.getElementById('reg-name').value;
-                const phone = document.getElementById('reg-phone').value;
-                
-                if (!name || !phone) return showError("請完整填寫資料");
+            // 加上銀粉質感裝飾
+            for(let i=0; i<100; i++){
+                ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                ctx.beginPath();
+                ctx.arc(Math.random()*canvas.width, Math.random()*canvas.height, 1, 0, Math.PI*2);
+                ctx.fill();
+            }
 
-                try {
-                    const profileRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'member');
-                    await setDoc(profileRef, {
-                        name,
-                        phone,
-                        createdAt: new Date().toISOString(),
-                        userId: userId
-                    });
-                } catch (e) {
-                    showError("儲存資料失敗");
-                }
+            ctx.fillStyle = '#9CA3AF';
+            ctx.font = 'bold 16px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('刮開領取驚喜', canvas.width/2, canvas.height/2 + 6);
+
+            let painting = false;
+
+            const getPos = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
+                };
             };
+
+            const scratch = (e) => {
+                if (!painting) return;
+                const pos = getPos(e);
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.beginPath();
+                ctx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
+                ctx.fill();
+                checkProgress();
+            };
+
+            canvas.addEventListener('mousedown', (e) => { painting = true; scratch(e); });
+            canvas.addEventListener('touchstart', (e) => { 
+                e.preventDefault(); 
+                painting = true; 
+                scratch(e); 
+            }, { passive: false });
+
+            window.addEventListener('mousemove', scratch);
+            window.addEventListener('touchmove', (e) => { 
+                if(painting) e.preventDefault();
+                scratch(e); 
+            }, { passive: false });
+
+            window.addEventListener('mouseup', () => painting = false);
+            window.addEventListener('touchend', () => painting = false);
         }
+
+        function checkProgress() {
+            if (isScratched) return;
+            
+            // 檢查刮開面積 (簡單取樣)
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const pixels = imageData.data;
+            let transparent = 0;
+            
+            for (let i = 0; i < pixels.length; i += 40) { // 取樣檢查
+                if (pixels[i + 3] === 0) transparent++;
+            }
+
+            const percent = (transparent / (pixels.length / 40)) * 100;
+            if (percent > 40) { // 刮開超過 40%
+                isScratched = true;
+                canvas.style.transition = 'opacity 0.5s ease';
+                canvas.style.opacity = '0';
+                setTimeout(() => {
+                    canvas.style.display = 'none';
+                    document.getElementById('instruction').textContent = "恭喜獲獎！快截圖與我們連繫吧！";
+                    document.getElementById('action-area').classList.remove('hidden');
+                }, 500);
+            }
+        }
+
+        window.onload = startSystem;
     </script>
 </body>
 </html>
