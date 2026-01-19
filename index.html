@@ -1,18 +1,15 @@
-<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Corin Beauty - 刮刮樂系統</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Corin Beauty - 官方刮刮樂</title>
     <title>Corin Beauty - 刮刮樂抽獎</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
-        
-        body { font-family: 'Noto Sans TC', sans-serif; background-color: #f9fafb; }
-        canvas { touch-action: none; -webkit-user-select: none; user-select: none; }
-        
+        body {
+            background-color: #fdf2f8;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         /* 禁用長按選取與手勢動作，優化刮刮樂手感 */
         canvas {
             touch-action: none;
@@ -21,266 +18,182 @@
             -ms-user-select: none;
             user-select: none;
         }
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
         .scratch-container {
             position: relative;
-            width: 320px;
-            height: 200px;
             width: 300px;
             height: 150px;
             background: #f3f4f6;
-            background: #ffffff;
-            border-radius: 16px;
             border-radius: 12px;
             overflow: hidden;
-            border: 2px solid #fce7f3;
-        }
-
-        .modal-active { display: flex !important; animation: fadeIn 0.3s ease-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        
-        .share-success-animation {
-            animation: bounceIn 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
         }
-        @keyframes bounceIn {
-            0% { opacity: 0; transform: scale(0.3); }
-            50% { opacity: 1; transform: scale(1.05); }
-            70% { transform: scale(0.9); }
-            100% { transform: scale(1); }
+        .status-card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
         .loading-spinner {
             border: 3px solid rgba(236, 72, 153, 0.2);
-            border: 3px solid rgba(236, 72, 153, 0.1);
             border-top: 3px solid #ec4899;
             border-radius: 50%;
             width: 24px;
             height: 24px;
             animation: spin 1s linear infinite;
-            width: 32px;
-            height: 32px;
-            animation: spin 0.8s linear infinite;
         }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 bg-gray-50">
-
-    <!-- 載入中遮罩 -->
-    <div id="loading-overlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
-        <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-pink-600 mb-4"></div>
-        <p class="text-pink-600 font-bold">載入中...</p>
-    </div>
-
-    <!-- 兌換確認彈窗 -->
-    <div id="redeem-confirm-modal" class="fixed inset-0 bg-black/60 z-[70] hidden items-center justify-center p-6 backdrop-blur-sm">
-        <div class="bg-white rounded-[2rem] p-8 max-w-xs w-full text-center shadow-2xl">
-            <div class="w-16 h-16 bg-pink-50 text-pink-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">🎫</div>
-            <h3 class="text-xl font-black text-gray-800 mb-2">確認兌換？</h3>
-            <p class="text-sm text-gray-500 leading-relaxed mb-6">請確認您已在櫃檯現場，點擊後獎項將標註為已兌換且無法恢復。</p>
-            <div class="flex gap-2">
-                <button onclick="closeModal('redeem-confirm-modal')" class="flex-1 py-4 bg-gray-100 text-gray-500 rounded-2xl text-sm font-bold">取消</button>
-                <button id="confirm-redeem-btn" class="flex-1 py-4 bg-pink-600 text-white rounded-2xl text-sm font-bold">確定兌換</button>
-            </div>
+<body>
 <body class="bg-pink-50 min-h-screen flex items-center justify-center p-4">
 
+    <!-- 載入中遮罩 -->
+    <div id="loading" class="loading-overlay">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mb-4"></div>
+        <p class="text-pink-600 font-medium">系統連線中...</p>
     <!-- 初始化遮罩 -->
     <div id="setup-overlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center p-6 text-center">
         <div id="setup-status">
-    <!-- 狀態遮罩層 -->
-    <div id="status-overlay" class="fixed inset-0 bg-white/90 backdrop-blur-sm z-50 flex flex-col items-center justify-center p-6 text-center">
-        <div id="loading-ui">
             <div class="loading-spinner mx-auto mb-4"></div>
             <p class="text-pink-600 font-medium">連線至 Corin Beauty 伺服器...</p>
-            <p class="text-pink-600 font-medium">系統連線中，請稍候...</p>
         </div>
     </div>
 
-    <!-- 分享成功獎勵彈窗 -->
-    <div id="share-success-modal" class="fixed inset-0 bg-black/60 z-[80] hidden items-center justify-center p-6 backdrop-blur-md">
-        <div class="bg-white rounded-[2.5rem] p-8 max-w-xs w-full text-center shadow-2xl share-success-animation">
-            <div class="text-6xl mb-4">🎉</div>
-            <h3 class="text-2xl font-black text-pink-600 mb-2">分享成功！</h3>
-            <p class="text-gray-600 font-bold mb-6">恭喜獲得額外<br><span class="text-3xl text-pink-500">2</span> 次抽獎機會</p>
-            <button onclick="closeModal('share-success-modal')" class="w-full py-4 bg-pink-600 text-white rounded-2xl font-black shadow-lg shadow-pink-200">立即去刮獎</button>
-        <div id="error-ui" class="hidden">
-            <div class="text-red-500 text-4xl mb-4">⚠️</div>
-            <h2 class="text-lg font-bold text-gray-800 mb-2">連線發生錯誤</h2>
-            <p id="error-message" class="text-sm text-gray-600 mb-6 px-4"></p>
-            <button onclick="location.reload()" class="bg-gray-800 text-white px-6 py-2 rounded-full text-sm">重新整理</button>
-        </div>
-    </div>
+    <!-- 主內容區 -->
+    <div id="app" class="hidden min-h-screen p-4 flex flex-col items-center">
+        <header class="w-full max-w-md mb-6">
+            <h1 class="text-2xl font-bold text-pink-600 text-center">Corin Beauty</h1>
+            <p class="text-sm text-gray-500 text-center">專屬刮刮樂獎勵系統</p>
+        </header>
 
-    <div id="main-card" class="bg-white rounded-[2.5rem] shadow-2xl p-6 w-full max-w-sm border border-gray-100 relative overflow-hidden flex flex-col min-h-[600px]">
-        
-        <!-- 頂部狀態 -->
-        <div class="flex justify-between items-center mb-6">
-            <div class="flex bg-gray-100 p-1 rounded-xl">
-                <button id="tab-game" onclick="switchTab('game')" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-white shadow-sm text-pink-600">抽獎遊戲</button>
-                <button id="tab-history" onclick="switchTab('history')" class="px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-400">中獎紀錄</button>
+        <!-- 使用者資訊區 -->
+        <div class="status-card" id="user-section">
+            <div id="auth-status" class="mb-4">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800" id="uid-tag">
+                    未登入
+                </span>
             </div>
-            <div class="flex items-center space-x-1">
-                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Chance</span>
-                <div id="chance-dots" class="flex space-x-1"></div>
-            </div>
+            
+            <div id="profile-content">
+                <p class="text-gray-600 mb-4">正在確認您的會員資料...</p>
     <!-- 主卡片 -->
     <div class="bg-white rounded-3xl shadow-xl p-8 w-full max-w-md border border-pink-100">
-    <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-md border border-pink-100">
         <div class="text-center mb-6">
             <h1 class="text-2xl font-bold text-gray-800">Corin Beauty</h1>
             <p class="text-pink-500 font-medium mt-1">✨ 專屬刮刮樂抽獎 ✨</p>
-            <p class="text-pink-500 font-medium mt-1">✨ 尊榮會員專屬刮刮樂 ✨</p>
         </div>
 
-        <!-- 醒目警告區 -->
-        <div class="bg-rose-500 text-white text-[11px] py-2 px-4 rounded-full flex justify-between items-center font-bold mb-6 shadow-md shadow-rose-100">
-            <span>⚠️ 獎項逾期失效｜建議截圖保存</span>
-            <span class="bg-white/20 px-2 py-0.5 rounded">單次使用優惠不重複</span>
-        </div>
-
-        <!-- 頁面：抽獎遊戲 -->
-        <div id="page-game" class="flex-1 flex flex-col">
-            <div class="text-center mb-4">
-                <h1 class="text-2xl font-black text-gray-800 tracking-tight">Corin Beauty</h1>
-                <p class="text-[10px] text-pink-500 font-bold tracking-[0.3em] uppercase mt-1">Premium Scratch</p>
-            </div>
-
-            <div id="game-area" class="flex justify-center mb-6">
-                <div id="scratch-box" class="scratch-container shadow-inner">
-                    <div id="prize-content" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-white opacity-0 transition-opacity">
-                        <div class="text-[10px] font-bold text-pink-600 mb-1">CONGRATULATIONS</div>
-                        <div id="prize-name" class="text-xl font-black text-gray-900 leading-tight mb-2"></div>
-                        <div class="mt-2 py-1 px-3 bg-gray-50 rounded-lg border border-gray-100 z-10">
-                            <div id="verification-time" class="text-[9px] text-gray-400 font-mono"></div>
-                            <div id="expiry-date" class="text-[9px] text-rose-500 font-bold mt-0.5"></div>
-                        </div>
-                    </div>
-                    <canvas id="scratch-canvas" class="absolute inset-0 z-20 cursor-crosshair"></canvas>
         <div class="flex justify-center">
             <div class="scratch-container">
                 <!-- 底層結果 -->
                 <div id="prize-content" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4">
                     <span class="text-gray-400 text-sm mb-1">恭喜您獲得</span>
                     <span id="prize-text" class="text-xl font-bold text-pink-600">載入中...</span>
-            <div class="scratch-container border-2 border-pink-100">
-                <!-- 底層獎項 -->
-                <div id="prize-content" class="absolute inset-0 flex flex-col items-center justify-center text-center p-4 bg-white">
-                    <span class="text-gray-400 text-xs mb-1">恭喜獲得</span>
-                    <span id="prize-text" class="text-xl font-black text-pink-600">正在準備獎項...</span>
                 </div>
                 <!-- 上層刮刮布 -->
                 <canvas id="scratch-canvas" class="absolute inset-0 cursor-pointer"></canvas>
             </div>
         </div>
 
-            <!-- 次數用完鎖定 -->
-            <div id="locked-overlay" class="hidden flex-1 flex flex-col items-center justify-center text-center py-8 bg-gray-50 rounded-3xl border border-gray-100 mb-6">
-                <div class="text-5xl mb-4">🎁</div>
-                <h3 class="text-gray-800 font-black text-xl leading-tight mb-2">今日抽獎已結束</h3>
-                <p class="text-gray-500 text-sm font-bold">分享好友可額外獲得 <span class="text-pink-600 text-lg">2</span> 次機會</p>
-                <button onclick="shareToFriends()" class="mt-6 px-8 py-3 bg-emerald-500 text-white rounded-full font-black flex items-center gap-2 shadow-lg shadow-emerald-100 active:scale-95 transition-all">
-                    <span>🚀</span> 分享獲得更多機會
+        <!-- 錯誤訊息彈窗 (代替 alert) -->
+        <div id="error-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-[2000]">
+            <div class="bg-white rounded-lg p-6 max-w-sm w-full">
+                <h3 class="text-lg font-bold text-red-600 mb-2">系統錯誤</h3>
+                <p id="error-message" class="text-gray-600 mb-4"></p>
+                <button onclick="location.reload()" class="w-full bg-pink-500 text-white py-2 rounded-lg">重試</button>
         <div class="mt-6 text-center">
             <p id="instruction" class="text-sm text-gray-400">請在上方灰色區域刮開獎項</p>
             <div id="action-area" class="hidden mt-4">
                 <button onclick="window.location.reload()" class="bg-pink-500 text-white px-8 py-2 rounded-full font-bold hover:bg-pink-600 transition-transform active:scale-95 shadow-md">
-            <p id="instruction" class="text-sm text-gray-400 font-medium">請在上方灰色區域刮開</p>
-            <div id="action-area" class="hidden mt-4 animate-bounce">
-                <button onclick="location.reload()" class="bg-gradient-to-r from-pink-500 to-rose-500 text-white px-10 py-2 rounded-full font-bold shadow-lg">
                     再抽一次
                 </button>
-                <div id="countdown-timer" class="mt-6 text-xs font-mono font-bold text-gray-400">下次重置倒數 00:00:00</div>
-            </div>
-
-            <!-- 下方按鈕區 -->
-            <div id="footer-controls" class="mt-auto space-y-3">
-                <p id="hint-text" class="text-center text-[11px] text-gray-400 animate-pulse">請塗抹灰色區域以獲取獎項</p>
-                
-                <div id="action-buttons" class="hidden flex flex-col gap-2">
-                    <button id="btn-again" onclick="resetGame()" class="w-full py-4 bg-pink-600 text-white rounded-2xl text-sm font-black shadow-lg shadow-pink-100 active:scale-95 transition-all">
-                        再刮一次 (剩餘 <span id="remaining-count">0</span> 次)
-                    </button>
-                </div>
-                
-                <div class="text-center">
-                    <button onclick="handleReservation()" class="text-pink-500 font-bold text-sm hover:underline decoration-2 underline-offset-4">手刀預約專屬課程 ➔</button>
-                </div>
             </div>
         </div>
 
-        <!-- 頁面：中獎紀錄 -->
-        <div id="page-history" class="hidden flex-1 flex flex-col">
-            <h2 class="text-lg font-black text-gray-800 mb-4">我的獎項紀錄</h2>
-            <div id="history-list" class="flex-1 overflow-y-auto space-y-3 pr-1"></div>
-        </div>
-
-        <!-- 底部資訊 -->
-        <div class="mt-6 pt-4 border-t border-gray-50 flex justify-between items-center">
-            <p class="text-[10px] text-gray-400">⚠️ 每日可刮 3 次，於 23:59 重置</p>
-            <span id="user-id-display" class="text-[9px] text-gray-300 font-mono tracking-tighter uppercase">UID: ----</span>
         <div class="mt-8 pt-6 border-t border-gray-100 text-[10px] text-gray-300 text-center italic">
             Powered by Corin Beauty App
-        <div class="mt-10 pt-4 border-t border-pink-50 text-[10px] text-gray-300 text-center uppercase tracking-widest">
-            © Corin Beauty Professional Care
         </div>
     </div>
 
-    <script>
-        const INITIAL_CHANCES = 3;
-        const SHARE_BONUS = 2;
-        const EXPIRY_DAYS = 7;
-        
-        let state = {
-            count: 0,
-            bonusCount: 0,
-            lastPlayedDate: '',
-            hasSharedToday: false,
-            prizes: []
+    <!-- Firebase SDKs -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, onSnapshot, setDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // 1. 環境變數讀取
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'corin-beauty-app';
+        
+        // 2. 初始化 Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const loadingEl = document.getElementById('loading');
+        const appEl = document.getElementById('app');
+        const profileContent = document.getElementById('profile-content');
+        const uidTag = document.getElementById('uid-tag');
+
+        // 顯示錯誤訊息
+        function showError(msg) {
+            document.getElementById('error-message').innerText = msg;
+            document.getElementById('error-modal').classList.remove('hidden');
+        }
+
+        // 3. 認證流程 (符合 RULE 3)
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+                showError("無法建立安全連線，請檢查 Firebase 驗證設定。");
+            }
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 
         // 您提供的 Firebase 設定
         const firebaseConfig = {
             apiKey: "AIzaSyB48QgamPtCi6o44ymd-2E1VLCrzWEkM_0",
             authDomain: "corin-beauty-app.firebaseapp.com",
-@@ -92,136 +94,99 @@ <h1 class="text-2xl font-bold text-gray-800">Corin Beauty</h1>
+            projectId: "corin-beauty-app",
+            storageBucket: "corin-beauty-app.firebasestorage.app",
+            messagingSenderId: "455619263170",
+            appId: "1:455619263170:web:78be5b0ca385458758195b",
             measurementId: "G-439KCLRJ43"
         };
 
-        const prizes = [
-            { name: "1獎－當日當次消費 5 折", weight: 2 },
-            { name: "2獎－當日當次消費 7 折", weight: 5 },
-            { name: "4獎－暗沉掰掰單部位三堂 $899", weight: 30 },
-            { name: "5獎－腋下除毛一堂優惠價 $99", weight: 50 },
-            { name: "7獎－現折 100 元", weight: 70 },
-            { name: "8獎－現折 50 元", weight: 80 }
-        ];
+        // 啟動認證
+        initAuth();
         let canvas, ctx, isScratched = false;
         const prizeList = ["療程現折 $200", "保濕面膜一堂", "美肌精華液乙瓶", "首次體驗 8 折"];
-        const prizes = ["療程現折 $200", "保濕面膜一堂", "美肌精華液乙瓶", "首次體驗 8 折", "免費諮詢乙次"];
 
-        function getToday() { return new Date().toDateString(); }
         async function startSystem() {
             const overlay = document.getElementById('setup-overlay');
             const statusBox = document.getElementById('setup-status');
-        async function initApp() {
-            const loadingUI = document.getElementById('loading-ui');
-            const errorUI = document.getElementById('error-ui');
-            const errMsg = document.getElementById('error-message');
 
-        function loadData() {
-            const saved = localStorage.getItem('corin_scratch_v5_v1');
-            const today = getToday();
-            if (saved) {
-                state = JSON.parse(saved);
-                if (state.lastPlayedDate !== today) {
-                    state.count = 0;
-                    state.bonusCount = 0;
-                    state.hasSharedToday = false;
-                    state.lastPlayedDate = today;
+        // 4. 監聽認證狀態變更
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                console.log("Authenticated as:", user.uid);
+                uidTag.innerText = `ID: ${user.uid}`;
+                uidTag.classList.replace('bg-gray-100', 'bg-green-100');
+                uidTag.classList.replace('text-gray-800', 'text-green-800');
             try {
-                // 1. 初始化
                 const app = initializeApp(firebaseConfig);
                 const auth = getAuth(app);
 
@@ -295,96 +208,81 @@
                         
                         overlay.classList.add('hidden');
                         initScratch();
-                // 2. 匿名登入 (這是最容易卡住的地方)
-                await signInAnonymously(auth).catch(e => {
-                    if (e.code === 'auth/operation-not-allowed') {
-                        throw new Error("請至 Firebase 後台開啟『匿名登入』功能 (Authentication > Sign-in method > Anonymous)");
                     }
-                    throw e;
                 });
 
             } catch (error) {
                 console.error("Firebase Error:", error);
                 let errorMsg = "初始化失敗，請檢查網路連線。";
-                
+
+                // 進入應用程式邏輯
+                startApp(user);
+            } else {
+                loadingEl.classList.remove('hidden');
+                appEl.classList.add('hidden');
+            }
+        });
+
+        // 5. 資料存取邏輯 (符合 RULE 1 & 2)
+        function startApp(user) {
+            loadingEl.classList.add('hidden');
+            appEl.classList.remove('hidden');
+
+            const userId = user.uid;
+            // 指向 private data 路径: /artifacts/{appId}/users/{userId}/{collectionName}/{docId}
+            const profileRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'member');
+
+            // 監聽使用者資料
+            const unsubscribe = onSnapshot(profileRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    renderProfile(data);
+                } else {
+                    renderRegisterForm(userId);
                 if (error.code === 'auth/operation-not-allowed') {
                     errorMsg = "權限錯誤：請在 Firebase 控制台啟用「匿名登入」功能。";
                 }
-            } else {
-                state.lastPlayedDate = today;
-            }
-            if (!localStorage.getItem('corin_uid')) {
-                localStorage.setItem('corin_uid', Math.random().toString(36).substring(2, 8).toUpperCase());
-            }
-            document.getElementById('user-id-display').innerText = `UID: ${localStorage.getItem('corin_uid')}`;
-            saveData();
-        }
+            }, (error) => {
+                console.error("Firestore Error:", error);
+                if (error.code === 'permission-denied') {
+                    showError("權限不足：請確認 Firestore Security Rules 是否已發佈。");
+                }
+            });
 
-        function saveData() { localStorage.setItem('corin_scratch_v5_v1', JSON.stringify(state)); }
-
-        function updateUI() {
-            const totalMax = INITIAL_CHANCES + state.bonusCount;
-            const remaining = totalMax - state.count;
-            const isLocked = remaining <= 0;
-
-            document.getElementById('remaining-count').innerText = remaining;
-            
-            // 邏輯關鍵：若次數用完才切換至鎖定版面
-            document.getElementById('game-area').style.display = isLocked ? 'none' : 'flex';
-            document.getElementById('hint-text').style.display = isLocked ? 'none' : 'block';
-            document.getElementById('locked-overlay').classList.toggle('hidden', !isLocked);
-            
-            if (isLocked) {
-                startTimer();
-                document.getElementById('action-buttons').classList.add('hidden');
-            }
-                // 3. 成功後準備介面
-                document.getElementById('prize-text').textContent = prizes[Math.floor(Math.random() * prizes.length)];
-                document.getElementById('status-overlay').classList.add('hidden');
-                setupScratch();
-
-            const dots = document.getElementById('chance-dots');
-            dots.innerHTML = '';
-            for(let i=0; i<totalMax; i++) {
-                const dot = document.createElement('div');
-                dot.className = `w-1.5 h-1.5 rounded-full ${i < (totalMax - state.count) ? 'bg-pink-500' : 'bg-gray-200'}`;
-                dots.appendChild(dot);
+            // 離開時清理監聽
+            window.addEventListener('unload', () => unsubscribe());
                 statusBox.innerHTML = `
                     <div class="text-red-500 mb-4">⚠️</div>
                     <p class="text-gray-700 font-bold">${errorMsg}</p>
                     <button onclick="location.reload()" class="mt-4 text-xs text-blue-500 underline">點此重試</button>
                 `;
-            } catch (error) {
-                console.error(error);
-                loadingUI.classList.add('hidden');
-                errorUI.classList.remove('hidden');
-                errMsg.textContent = error.message || "未知連線錯誤，請確認網路環境或 Firebase 設定。";
             }
         }
 
+        // 渲染會員資料
+        function renderProfile(data) {
+            profileContent.innerHTML = `
+                <div class="text-left">
+                    <p class="text-lg font-bold text-pink-500">歡迎回來，${data.name}！</p>
+                    <p class="text-sm text-gray-500">電話：${data.phone}</p>
+                    <div class="mt-4 border-t pt-4">
+                        <button class="w-full bg-pink-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-pink-600 transition">
+                            進入刮刮樂中心
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
         function initScratch() {
             canvas = document.getElementById('scratch-canvas');
             ctx = canvas.getContext('2d');
             
-        function setupScratch() {
-            const canvas = document.getElementById('scratch-canvas');
-            const ctx = canvas.getContext('2d');
-            const box = document.getElementById('scratch-box');
-            canvas.width = box.offsetWidth;
-            canvas.height = box.offsetHeight;
-            canvas.style.opacity = '1';
-            canvas.style.pointerEvents = 'auto';
-            
-            ctx.fillStyle = '#D1D5DB';
             canvas.width = canvas.offsetWidth;
             canvas.height = canvas.offsetHeight;
 
             // 繪製遮蓋層
             ctx.fillStyle = '#D1D5DB'; // 灰色
-            // 繪製灰色蓋層
-            ctx.fillStyle = '#C0C0C0'; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.font = 'bold 16px sans-serif';
 
             // 加上銀粉質感裝飾
             for(let i=0; i<100; i++){
@@ -392,28 +290,36 @@
                 ctx.beginPath();
                 ctx.arc(Math.random()*canvas.width, Math.random()*canvas.height, 1, 0, Math.PI*2);
                 ctx.fill();
-            // 繪製裝飾點點
-            for(let i=0; i<200; i++){
-                ctx.fillStyle = 'rgba(255,255,255,0.1)';
-                ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 2, 2);
             }
 
+        // 渲染註冊表單
+        function renderRegisterForm(userId) {
+            profileContent.innerHTML = `
+                <div class="text-left">
+                    <p class="text-gray-700 font-bold mb-4">首次進入？請填寫基本資料：</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs text-gray-400">姓名</label>
+                            <input type="text" id="reg-name" class="w-full border-b-2 border-pink-100 focus:border-pink-500 outline-none py-1">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400">電話</label>
+                            <input type="tel" id="reg-phone" class="w-full border-b-2 border-pink-100 focus:border-pink-500 outline-none py-1">
+                        </div>
+                        <button id="btn-register" class="w-full bg-white border-2 border-pink-500 text-pink-500 font-bold py-2 rounded-lg hover:bg-pink-50">
+                            完成註冊
+                        </button>
+                    </div>
+                </div>
+            `;
             ctx.fillStyle = '#9CA3AF';
             ctx.font = 'bold 16px sans-serif';
-            ctx.fillStyle = '#787878';
-            ctx.font = '600 16px sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('刮開看好運', canvas.width/2, canvas.height/2 + 5);
             ctx.fillText('刮開領取驚喜', canvas.width/2, canvas.height/2 + 6);
 
             let painting = false;
-            let isDrawing = false;
-            const scratch = (e) => {
-                if(!isDrawing) return;
 
             const getPos = (e) => {
-            function scratch(e) {
-                if (!isDrawing) return;
                 const rect = canvas.getBoundingClientRect();
                 const clientX = e.touches ? e.touches[0].clientX : e.clientX;
                 const clientY = e.touches ? e.touches[0].clientY : e.clientY;
@@ -423,31 +329,33 @@
                 };
             };
 
+            document.getElementById('btn-register').onclick = async () => {
+                const name = document.getElementById('reg-name').value;
+                const phone = document.getElementById('reg-phone').value;
+                
+                if (!name || !phone) return showError("請完整填寫資料");
+
+                try {
+                    const profileRef = doc(db, 'artifacts', appId, 'users', userId, 'profile', 'member');
+                    await setDoc(profileRef, {
+                        name,
+                        phone,
+                        createdAt: new Date().toISOString(),
+                        userId: userId
+                    });
+                } catch (e) {
+                    showError("儲存資料失敗");
+                }
             const scratch = (e) => {
                 if (!painting) return;
                 const pos = getPos(e);
-                const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-                const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-
                 ctx.globalCompositeOperation = 'destination-out';
                 ctx.beginPath();
                 ctx.arc(pos.x, pos.y, 20, 0, Math.PI * 2);
-                ctx.arc(x, y, 25, 0, Math.PI * 2);
                 ctx.fill();
-
-                const pixels = ctx.getImageData(0,0,canvas.width,canvas.height).data;
-                let clear = 0;
-                for(let i=3; i<pixels.length; i+=4) if(pixels[i] === 0) clear++;
-                if(clear > (pixels.length/4) * 0.45) finishScratch();
                 checkProgress();
             };
 
-            canvas.onmousedown = () => isDrawing = true;
-            canvas.ontouchstart = (e) => { isDrawing = true; e.preventDefault(); };
-            window.onmousemove = scratch;
-            window.ontouchmove = scratch;
-            window.onmouseup = () => isDrawing = false;
-            window.ontouchend = () => isDrawing = false;
             canvas.addEventListener('mousedown', (e) => { painting = true; scratch(e); });
             canvas.addEventListener('touchstart', (e) => { 
                 e.preventDefault(); 
@@ -465,86 +373,18 @@
             window.addEventListener('touchend', () => painting = false);
         }
 
-        function finishScratch() {
-            const canvas = document.getElementById('scratch-canvas');
-            canvas.style.pointerEvents = 'none';
-            canvas.style.opacity = '0';
-            canvas.style.transition = 'opacity 0.5s';
-            
-            const selected = prizes[Math.floor(Math.random() * prizes.length)];
-            const now = Date.now();
-            const exp = now + (EXPIRY_DAYS * 86400000);
-
-            state.prizes.push({
-                id: Math.random().toString(36).substring(2, 9),
-                name: selected.name,
-                winDate: now,
-                expDate: exp,
-                isRedeemed: false
-            });
-            
-            state.count++;
-            saveData();
         function checkProgress() {
             if (isScratched) return;
-
-            document.getElementById('prize-name').innerText = selected.name;
-            document.getElementById('verification-time').innerText = `刮開：${new Date().toLocaleString()}`;
-            document.getElementById('expiry-date').innerText = `有效至：${new Date(exp).toLocaleDateString()}`;
-            document.getElementById('prize-content').style.opacity = '1';
+            
             // 檢查刮開面積 (簡單取樣)
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const pixels = imageData.data;
             let transparent = 0;
-
-            // 只有在還有剩餘次數時才顯示「再刮一次」按鈕，否則會直接轉向鎖定畫面
-            const remaining = (INITIAL_CHANCES + state.bonusCount) - state.count;
-            if (remaining > 0) {
-                document.getElementById('action-buttons').classList.remove('hidden');
-                document.getElementById('remaining-count').innerText = remaining;
-            } else {
-                setTimeout(() => updateUI(), 1500); // 留一點時間看中獎結果再轉鎖定
+            
             for (let i = 0; i < pixels.length; i += 40) { // 取樣檢查
                 if (pixels[i + 3] === 0) transparent++;
-                
-                checkFinish();
             }
-            
-            confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
-        }
 
-        function resetGame() {
-            document.getElementById('prize-content').style.opacity = '0';
-            document.getElementById('action-buttons').classList.add('hidden');
-            document.getElementById('loading-overlay').style.display = 'flex';
-            setTimeout(() => {
-                document.getElementById('loading-overlay').style.display = 'none';
-                setupScratch();
-                updateUI();
-            }, 600);
-        }
-
-        async function shareToFriends() {
-            const shareUrl = "https://corin-beauty.com/scratch?ref=" + localStorage.getItem('corin_uid');
-            try {
-                // 模擬複製與分享成功
-                const el = document.createElement('textarea');
-                el.value = `快來搶優惠！我在 Corin Beauty 刮中了超大禮包：${shareUrl}`;
-                document.body.appendChild(el);
-                el.select();
-                document.execCommand('copy');
-                document.body.removeChild(el);
-
-                if (!state.hasSharedToday) {
-                    state.bonusCount += SHARE_BONUS;
-                    state.hasSharedToday = true;
-                    saveData();
-                    
-                    document.getElementById('share-success-modal').classList.add('modal-active');
-                    confetti({ particleCount: 150, spread: 100, origin: { y: 0.5 } });
-                    updateUI();
-                } else {
-                    alert("連結已複製到剪貼簿！(今日獎勵已領取過)");
             const percent = (transparent / (pixels.length / 40)) * 100;
             if (percent > 40) { // 刮開超過 40%
                 isScratched = true;
@@ -553,107 +393,12 @@
                 setTimeout(() => {
                     canvas.style.display = 'none';
                     document.getElementById('instruction').textContent = "恭喜獲獎！快截圖與我們連繫吧！";
-            function checkFinish() {
-                const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                let count = 0;
-                for (let i = 3; i < data.length; i += 4) {
-                    if (data[i] === 0) count++;
-                }
-                if (count > (data.length / 4) * 0.5) {
-                    canvas.style.opacity = '0';
-                    canvas.style.pointerEvents = 'none';
-                    document.getElementById('instruction').textContent = "🎉 恭喜您！截圖後請聯繫 Corin Beauty 領取！";
                     document.getElementById('action-area').classList.remove('hidden');
                 }, 500);
-                }
-            } catch (err) {
-                console.error(err);
             }
         }
 
-        function renderHistory() {
-            const list = document.getElementById('history-list');
-            list.innerHTML = '';
-            if(state.prizes.length === 0) {
-                list.innerHTML = '<p class="text-center text-gray-400 py-10 font-bold">目前還沒有中獎紀錄喔！</p>';
-                return;
-            }
-            [...state.prizes].reverse().forEach(p => {
-                const isExpired = Date.now() > p.expDate && !p.isRedeemed;
-                const item = document.createElement('div');
-                item.className = `p-4 rounded-2xl border mb-3 ${p.isRedeemed ? 'bg-gray-50 opacity-60' : 'bg-white shadow-sm'}`;
-                item.innerHTML = `
-                    <div class="flex justify-between items-start mb-1">
-                        <span class="text-[10px] text-gray-400 font-mono">ID: ${p.id}</span>
-                        <span class="text-[10px] font-bold ${p.isRedeemed ? 'text-gray-400' : (isExpired ? 'text-rose-400' : 'text-emerald-500')}">
-                            ${p.isRedeemed ? '已兌換' : (isExpired ? '已逾期' : '未使用')}
-                        </span>
-                    </div>
-                    <div class="font-bold text-gray-800 text-sm mb-2">${p.name}</div>
-                    <div class="flex justify-between items-end">
-                        <span class="text-[9px] text-gray-400">有效期：${new Date(p.expDate).toLocaleDateString()}</span>
-                        ${(!p.isRedeemed && !isExpired) ? `<button onclick="redeem('${p.id}')" class="px-4 py-1.5 bg-pink-600 text-white rounded-lg text-xs font-bold shadow-md">兌換</button>` : ''}
-                    </div>
-                `;
-                list.appendChild(item);
-            });
-        }
-
-        function redeem(id) {
-            const p = state.prizes.find(x => x.id === id);
-            if(!p) return;
-            document.getElementById('redeem-confirm-modal').classList.add('modal-active');
-            document.getElementById('confirm-redeem-btn').onclick = () => {
-                p.isRedeemed = true;
-                saveData();
-                renderHistory();
-                closeModal('redeem-confirm-modal');
-            };
-        }
-
-        function closeModal(id) { document.getElementById(id).classList.remove('modal-active'); }
-
-        function switchTab(t) {
-            const isGame = t === 'game';
-            document.getElementById('page-game').classList.toggle('hidden', !isGame);
-            document.getElementById('page-history').classList.toggle('hidden', isGame);
-            document.getElementById('tab-game').className = isGame ? 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-white shadow-sm text-pink-600' : 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-400';
-            document.getElementById('tab-history').className = !isGame ? 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-white shadow-sm text-pink-600' : 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-400';
-            if(!isGame) renderHistory();
-            canvas.addEventListener('mousedown', () => isDrawing = true);
-            canvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; }, {passive: false});
-            window.addEventListener('mousemove', scratch);
-            window.addEventListener('touchmove', (e) => { scratch(e); }, {passive: false});
-            window.addEventListener('mouseup', () => isDrawing = false);
-            window.addEventListener('touchend', () => isDrawing = false);
-        }
-
-        function startTimer() {
-            const el = document.getElementById('countdown-timer');
-            const tick = () => {
-                const now = new Date();
-                const mid = new Date(); mid.setHours(23, 59, 59, 999);
-                const diff = mid - now;
-                if(diff <= 0) { location.reload(); return; }
-                const h = String(Math.floor(diff/3600000)).padStart(2,'0');
-                const m = String(Math.floor((diff%3600000)/60000)).padStart(2,'0');
-                const s = String(Math.floor((diff%60000)/1000)).padStart(2,'0');
-                el.innerText = `下次重置倒數 ${h}:${m}:${s}`;
-            };
-            tick();
-            setInterval(tick, 1000);
-        }
-
-        function handleReservation() { window.open("https://line.me/R/ti/p/@corinbeauty", "_blank"); }
-
-        window.onload = () => {
-            loadData();
-            updateUI();
-            setupScratch();
-            setTimeout(() => document.getElementById('loading-overlay').style.display = 'none', 800);
-        };
         window.onload = startSystem;
-        initApp();
     </script>
 </body>
 </html>
