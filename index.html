@@ -1,40 +1,47 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
+    <!-- 確保最先讀取字體與視窗設定 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <!-- --- 專業分享設定 (SEO & Open Graph) --- -->
-    <title>Corin Beauty - 官方刮刮樂</title>
-    <meta name="description" content="專屬您的美麗驚喜！立即參與 Corin Beauty 官方刮刮樂，贏取專屬美肌療程優惠。">
+    <!-- --- 專業分享預覽設定 (SEO & Open Graph) --- -->
+    <title>Corin Beauty - 官方刮刮樂活動</title>
+    <meta name="description" content="參與 Corin Beauty 官方抽獎活動，獲取專屬美肌優惠。立即刮開您的好運，體驗專業美容護理。">
     
-    <!-- Facebook & LINE 分享預覽 -->
+    <!-- LINE / Facebook / 社交平台預覽 -->
     <meta property="og:type" content="website">
-    <meta property="og:title" content="Corin Beauty - 官方刮刮樂">
-    <meta property="og:description" content="專屬您的美麗驚喜！立即點擊參與抽獎，多項美肌療程優惠等你來拿。">
-    <meta property="og:url" content="https://yourusername.github.io/your-repo-name/"> <!-- 這裡請改成您的 GitHub Pages 網址 -->
-    <meta property="og:image" content="https://images.unsplash.com/photo-1560750588-73207b1ef5b8?auto=format&fit=crop&w=1200&q=80"> <!-- 這裡建議更換成您的活動封面圖連結 -->
+    <meta property="og:title" content="Corin Beauty 官方刮刮樂 - 限時優惠領取">
+    <meta property="og:description" content="✨ 專屬您的美麗驚喜 ✨ 立即點擊參與抽獎，贏取專業美肌療程、睫毛管理及多項專屬優惠！">
+    
+    <!-- 已更新為正式網址 -->
+    <meta property="og:url" content="https://corinbeauty.github.io/scratch-card/"> 
+    <meta property="og:image" content="https://corinbeauty.github.io/scratch-card/背景.jpg">
+    
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="Corin Beauty">
 
-    <!-- Twitter 分享預覽 -->
+    <!-- Twitter 預覽 -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Corin Beauty - 官方刮刮樂">
-    <meta name="twitter:description" content="立即參與刮刮樂，獲取專屬美肌優惠！">
+    <meta name="twitter:description" content="立即參與刮刮樂，獲取您的美肌驚喜優惠！">
 
+    <!-- 腳本加載 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
         body { 
             font-family: 'Noto Sans TC', sans-serif; 
             -webkit-tap-highlight-color: transparent; 
-            /* 設定背景圖片 */
-            background-image: url('背景.jpg');
+            /* 背景圖片設定 - 已替換為真實連結 */
+            background-image: url('https://corinbeauty.github.io/scratch-card/背景.jpg');
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             background-attachment: fixed;
-            /* 保留一個底色以防圖片載入失敗時顯示 */
             background-color: #fff5f7; 
         }
         .scratch-container {
@@ -355,18 +362,19 @@
                 document.getElementById('hint-text').classList.remove('hidden');
                 document.getElementById('locked-overlay').classList.add('hidden');
                 
-                // 檢查 canvas 是否存在且已初始化
                 if (state.count > 0 && canvas && canvas.style.opacity === '0') {
                     document.getElementById('action-buttons').classList.remove('hidden');
                 }
             }
 
             const dots = document.getElementById('chance-dots');
-            dots.innerHTML = '';
-            for(let i=0; i<5; i++) {
-                const dot = document.createElement('div');
-                dot.className = `w-1.5 h-1.5 rounded-full ${i < state.count ? 'bg-pink-500' : 'bg-gray-200'}`;
-                dots.appendChild(dot);
+            if (dots) {
+                dots.innerHTML = '';
+                for(let i=0; i<5; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = `w-1.5 h-1.5 rounded-full ${i < state.count ? 'bg-pink-500' : 'bg-gray-200'}`;
+                    dots.appendChild(dot);
+                }
             }
         }
 
@@ -381,7 +389,6 @@
             ctx = canvas.getContext('2d', { willReadFrequently: true });
             const box = document.getElementById('scratch-box');
             
-            // 安全檢查：確保容器寬度有效
             const containerWidth = box.offsetWidth || 300;
             const containerHeight = box.offsetHeight || 160;
             
@@ -461,7 +468,6 @@
         }
 
         function checkProgress() {
-            // 安全檢查：防止在畫布尺寸為 0 或已隱藏時執行讀像素操作
             if (!canvas || canvas.width === 0 || canvas.height === 0 || canvas.style.opacity === '0') return;
             
             try {
@@ -526,8 +532,8 @@
 
         window.shareToFriends = async function() {
             const shareData = {
-                title: 'Corin Beauty 官方刮刮樂',
-                text: '我在 Corin Beauty 刮中了驚喜好禮，你也快來試試手氣！',
+                title: 'Corin Beauty 官方刮刮樂活動',
+                text: '我剛刮中了 Corin Beauty 的獎項！你也快來試試好運領取美肌優惠！',
                 url: window.location.href
             };
             
