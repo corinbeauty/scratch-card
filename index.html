@@ -3,12 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- --- 專業分享設定 (SEO & Open Graph) --- -->
     <title>Corin Beauty - 官方刮刮樂</title>
+    <meta name="description" content="專屬您的美麗驚喜！立即參與 Corin Beauty 官方刮刮樂，贏取專屬美肌療程優惠。">
+    
+    <!-- Facebook & LINE 分享預覽 -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Corin Beauty - 官方刮刮樂">
+    <meta property="og:description" content="專屬您的美麗驚喜！立即點擊參與抽獎，多項美肌療程優惠等你來拿。">
+    <meta property="og:url" content="https://yourusername.github.io/your-repo-name/"> <!-- 這裡請改成您的 GitHub Pages 網址 -->
+    <meta property="og:image" content="https://images.unsplash.com/photo-1560750588-73207b1ef5b8?auto=format&fit=crop&w=1200&q=80"> <!-- 這裡建議更換成您的活動封面圖連結 -->
+    <meta property="og:site_name" content="Corin Beauty">
+
+    <!-- Twitter 分享預覽 -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Corin Beauty - 官方刮刮樂">
+    <meta name="twitter:description" content="立即參與刮刮樂，獲取專屬美肌優惠！">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
-        body { font-family: 'Noto Sans TC', sans-serif; -webkit-tap-highlight-color: transparent; background-color: #fff5f7; }
+        body { 
+            font-family: 'Noto Sans TC', sans-serif; 
+            -webkit-tap-highlight-color: transparent; 
+            /* 設定背景圖片 */
+            background-image: url('背景.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            /* 保留一個底色以防圖片載入失敗時顯示 */
+            background-color: #fff5f7; 
+        }
         .scratch-container {
             position: relative;
             width: 300px;
@@ -27,7 +55,7 @@
         /* 大獎專屬動畫 */
         .big-win-glow {
             animation: bigWinGlow 1.5s infinite alternate;
-            border-color: #fbbf24 !important; /* 金色邊框 */
+            border-color: #fbbf24 !important;
         }
         @keyframes bigWinGlow {
             from { box-shadow: 0 0 10px #fbbf24; transform: scale(1); }
@@ -133,7 +161,7 @@
                 <p class="text-[10px] text-pink-500 font-bold tracking-[0.3em] uppercase mt-1">Premium Scratch</p>
             </div>
 
-            <!-- 醒目提醒區 - 顏色調整並排列為兩行 -->
+            <!-- 醒目提醒區 -->
             <div class="bg-rose-500 text-white rounded-2xl p-3 mb-6 shadow-md border-b-4 border-rose-600">
                 <div class="flex items-center gap-2 font-black text-[11px] mb-1.5">
                     <span>⚠️ 重要提醒</span>
@@ -327,6 +355,7 @@
                 document.getElementById('hint-text').classList.remove('hidden');
                 document.getElementById('locked-overlay').classList.add('hidden');
                 
+                // 檢查 canvas 是否存在且已初始化
                 if (state.count > 0 && canvas && canvas.style.opacity === '0') {
                     document.getElementById('action-buttons').classList.remove('hidden');
                 }
@@ -352,8 +381,12 @@
             ctx = canvas.getContext('2d', { willReadFrequently: true });
             const box = document.getElementById('scratch-box');
             
-            canvas.width = box.offsetWidth;
-            canvas.height = box.offsetHeight;
+            // 安全檢查：確保容器寬度有效
+            const containerWidth = box.offsetWidth || 300;
+            const containerHeight = box.offsetHeight || 160;
+            
+            canvas.width = containerWidth;
+            canvas.height = containerHeight;
             canvas.style.opacity = '1';
             canvas.style.pointerEvents = 'auto';
 
@@ -428,11 +461,17 @@
         }
 
         function checkProgress() {
-            if (canvas.style.opacity === '0') return;
-            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-            let clear = 0;
-            for (let i = 3; i < pixels.length; i += 40) { if (pixels[i] === 0) clear++; }
-            if (clear > (pixels.length / 40) * 0.45) finishScratch();
+            // 安全檢查：防止在畫布尺寸為 0 或已隱藏時執行讀像素操作
+            if (!canvas || canvas.width === 0 || canvas.height === 0 || canvas.style.opacity === '0') return;
+            
+            try {
+                const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+                let clear = 0;
+                for (let i = 3; i < pixels.length; i += 40) { if (pixels[i] === 0) clear++; }
+                if (clear > (pixels.length / 40) * 0.45) finishScratch();
+            } catch (err) {
+                console.warn("getImageData access issue:", err);
+            }
         }
 
         function finishScratch() {
@@ -599,7 +638,6 @@
 
         window.closeModal = function(id) { document.getElementById(id).classList.remove('modal-active'); };
         
-        // 更新後的預約連結
         window.handleReservation = function() { window.open("https://lin.ee/EeqKZ4u", "_blank"); };
 
         function startTimer() {
