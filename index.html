@@ -1,33 +1,19 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <!-- 確保最先讀取字體與視窗設定 -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     
-    <!-- --- 專業分享預覽設定 (SEO & Open Graph) --- -->
+    <!-- --- 專業分享預覽設定 --- -->
     <title>Corin Beauty - 官方刮刮樂活動</title>
     <meta name="description" content="參與 Corin Beauty 官方抽獎活動，獲取專屬美肌優惠。立即刮開您的好運，體驗專業美容護理。">
-    
-    <!-- LINE / Facebook / 社交平台預覽 -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="Corin Beauty 官方刮刮樂 - 限時優惠領取">
-    <meta property="og:description" content="✨ 專屬您的美麗驚喜 ✨ 立即點擊參與抽獎，贏取專業美肌療程、睫毛管理及多項專屬優惠！">
-    
-    <!-- 已更新為正式網址 -->
+    <meta property="og:description" content="✨ 專屬您的美麗驚喜 ✨ 立即點擊參與抽獎，贏取專業美肌療程及多項專屬優惠！">
     <meta property="og:url" content="https://corinbeauty.github.io/scratch-card/"> 
     <meta property="og:image" content="https://corinbeauty.github.io/scratch-card/背景.jpg">
-    
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="Corin Beauty">
 
-    <!-- Twitter 預覽 -->
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Corin Beauty - 官方刮刮樂">
-    <meta name="twitter:description" content="立即參與刮刮樂，獲取您的美肌驚喜優惠！">
-
-    <!-- 腳本加載 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     
@@ -36,7 +22,6 @@
         body { 
             font-family: 'Noto Sans TC', sans-serif; 
             -webkit-tap-highlight-color: transparent; 
-            /* 背景圖片設定 - 已替換為真實連結 */
             background-image: url('https://corinbeauty.github.io/scratch-card/背景.jpg');
             background-size: cover;
             background-position: center;
@@ -59,7 +44,6 @@
         .modal-active { display: flex !important; animation: fadeIn 0.3s ease-out; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         
-        /* 大獎專屬動畫 */
         .big-win-glow {
             animation: bigWinGlow 1.5s infinite alternate;
             border-color: #fbbf24 !important;
@@ -104,10 +88,10 @@
         </div>
     </div>
 
-    <!-- 管理員重置密碼彈窗 -->
+    <!-- 管理員驗證彈窗 -->
     <div id="admin-modal" class="fixed inset-0 bg-black/80 z-[120] hidden items-center justify-center p-6 backdrop-blur-md">
         <div class="bg-white rounded-[2rem] p-8 max-w-xs w-full text-center shadow-2xl">
-            <h3 class="text-xl font-black text-gray-800 mb-4">管理員驗證</h3>
+            <h3 id="admin-modal-title" class="text-xl font-black text-gray-800 mb-4">管理員驗證</h3>
             <input type="password" id="admin-pass" class="w-full border-2 border-pink-100 rounded-xl px-4 py-3 mb-4 text-center focus:border-pink-500 outline-none" placeholder="輸入密碼">
             <div class="flex gap-2">
                 <button onclick="closeModal('admin-modal')" class="flex-1 py-3 bg-gray-100 text-gray-400 rounded-xl font-bold">取消</button>
@@ -116,7 +100,34 @@
         </div>
     </div>
 
-    <!-- 通用訊息提示彈窗 -->
+    <!-- 獎項管理後台彈窗 -->
+    <div id="prize-admin-modal" class="fixed inset-0 bg-black/80 z-[130] hidden items-center justify-center p-4 backdrop-blur-md">
+        <div class="bg-white rounded-[2rem] p-6 max-w-md w-full max-h-[90vh] flex flex-col shadow-2xl">
+            <h3 class="text-xl font-black text-gray-800 mb-4 flex justify-between items-center">
+                獎項與機率管理
+                <button onclick="closeModal('prize-admin-modal')" class="text-gray-300 text-2xl">&times;</button>
+            </h3>
+            
+            <!-- 新增獎項區 -->
+            <div class="bg-pink-50 p-4 rounded-2xl mb-4 space-y-2">
+                <input type="text" id="new-prize-name" class="w-full px-3 py-2 rounded-lg border border-pink-100 text-sm" placeholder="新獎項名稱">
+                <div class="flex gap-2">
+                    <input type="number" id="new-prize-weight" class="flex-1 px-3 py-2 rounded-lg border border-pink-100 text-sm" placeholder="權重 (例: 10)">
+                    <button onclick="addPrizeToPool()" class="bg-pink-600 text-white px-4 py-2 rounded-lg text-sm font-bold">新增</button>
+                </div>
+                <p class="text-[9px] text-pink-400">※ 權重越高，中獎機率越高</p>
+            </div>
+
+            <!-- 獎項清單 -->
+            <div id="prize-manage-list" class="flex-1 overflow-y-auto space-y-2 pr-1 text-sm">
+                <!-- 獎項項目會動態插入 -->
+            </div>
+
+            <button onclick="saveAndClosePrizeAdmin()" class="mt-4 w-full py-4 bg-gray-800 text-white rounded-2xl font-bold">儲存並關閉</button>
+        </div>
+    </div>
+
+    <!-- 通用訊息提示 -->
     <div id="msg-modal" class="fixed inset-0 bg-black/40 z-[150] hidden items-center justify-center p-6 backdrop-blur-sm">
         <div class="bg-white rounded-3xl p-6 max-w-xs w-full text-center shadow-2xl">
             <p id="msg-text" class="text-gray-800 font-bold mb-6"></p>
@@ -147,7 +158,7 @@
         </div>
     </div>
 
-    <!-- 主卡片內容 -->
+    <!-- 主卡片 -->
     <div id="main-card" class="bg-white rounded-[2.5rem] shadow-2xl p-6 w-full max-sm border border-pink-50 flex flex-col min-h-[580px] relative">
         
         <div class="flex justify-between items-center mb-6">
@@ -161,14 +172,13 @@
             </div>
         </div>
 
-        <!-- 遊戲頁面 -->
         <div id="page-game" class="flex-1 flex flex-col">
             <div class="text-center mb-4">
                 <h1 class="text-2xl font-black text-gray-800 tracking-tight">Corin Beauty</h1>
                 <p class="text-[10px] text-pink-500 font-bold tracking-[0.3em] uppercase mt-1">Premium Scratch</p>
             </div>
 
-            <!-- 醒目提醒區 -->
+            <!-- 醒目提醒 -->
             <div class="bg-rose-500 text-white rounded-2xl p-3 mb-6 shadow-md border-b-4 border-rose-600">
                 <div class="flex items-center gap-2 font-black text-[11px] mb-1.5">
                     <span>⚠️ 重要提醒</span>
@@ -220,7 +230,6 @@
         <!-- 紀錄頁面 -->
         <div id="page-history" class="hidden flex-1 flex flex-col">
             <h2 class="text-lg font-black text-gray-800 mb-2">我的獎項紀錄</h2>
-            
             <div class="flex gap-2 mb-4">
                 <div class="flex-1 bg-emerald-50 border border-emerald-100 rounded-xl p-2 text-center">
                     <div id="count-valid" class="text-emerald-600 font-black text-lg leading-tight">0</div>
@@ -231,19 +240,20 @@
                     <div class="text-[9px] text-gray-400 font-bold uppercase">無效/已使用</div>
                 </div>
             </div>
-
             <div id="history-list" class="flex-1 overflow-y-auto space-y-6 pr-1"></div>
         </div>
 
-        <!-- 底部資訊 -->
         <div class="mt-6 pt-4 border-t border-gray-50">
             <div class="flex justify-between items-center mb-3">
                 <p class="text-[9px] text-gray-400 font-medium tracking-tight">每日 23:59 自動重置抽獎次數</p>
-                <span id="user-id-display" onclick="openAdmin()" class="text-[9px] text-gray-300 font-mono cursor-pointer hover:text-pink-300 transition-colors">UID: ----</span>
+                <span id="user-id-display" onclick="openAdmin('reset')" class="text-[9px] text-gray-300 font-mono cursor-pointer hover:text-pink-300 transition-colors">UID: ----</span>
             </div>
             <div class="text-center space-y-1">
                 <p class="text-[9px] text-gray-300 tracking-wide">建議使用手機瀏覽以獲得最佳操作體驗</p>
-                <p class="text-[10px] text-gray-400 font-bold tracking-widest uppercase">System By Corin</p>
+                <!-- 點擊進入獎項後台 -->
+                <p onclick="openAdmin('prizes')" class="text-[10px] text-gray-400 font-bold tracking-widest uppercase cursor-pointer hover:text-pink-400">System By Corin</p>
+                <!-- 系統版本定義 -->
+                <p class="text-[8px] text-gray-300/60 font-mono tracking-tighter">v26.1.30.14</p>
             </div>
         </div>
     </div>
@@ -266,7 +276,8 @@
         const SHARE_BONUS = 2;
         const EXPIRY_DAYS = 7;
 
-        const PRIZE_POOL = [
+        // 初始獎項池 (包含追加項目)
+        const DEFAULT_PRIZE_POOL = [
             { name: "1獎－當日當次消費 5 折 [以原價總額計算]", weight: 2 },
             { name: "2獎－當日當次消費 7 折 [以原價總額計算]", weight: 4 },
             { name: "3獎－當日當次消費 75 折 [以原價總額計算]", weight: 4 },
@@ -276,7 +287,13 @@
             { name: "7獎－現折 100 元", weight: 70 },
             { name: "8獎－現折 50 元", weight: 80 },
             { name: "9獎－靚顏深層護膚課程 $899", weight: 40 },
-            { name: "10獎－睫毛管理 $699", weight: 40 }
+            { name: "10獎－睫毛管理 $699", weight: 40 },
+            { name: "儲值加碼金 $500", weight: 20 },
+            { name: "儲值加碼金 $600", weight: 15 },
+            { name: "儲值加碼金 $700", weight: 10 },
+            { name: "儲值加碼金 $800", weight: 8 },
+            { name: "儲值加碼金 $900", weight: 5 },
+            { name: "儲值加碼金 $1000", weight: 3 }
         ];
 
         let state = {
@@ -284,11 +301,11 @@
             bonusCount: 0,
             lastPlayedDate: '',
             hasSharedToday: false,
-            prizes: []
+            prizes: [],
+            prizePool: [...DEFAULT_PRIZE_POOL] // 讓獎項池動態可調
         };
 
-        let canvas, ctx, painting = false;
-        let isPrizeGenerated = false;
+        let canvas, ctx, painting = false, currentAdminMode = '';
 
         async function initApp() {
             try {
@@ -304,69 +321,52 @@
                 console.error("Firebase Error:", error);
                 document.getElementById('loading-ui').classList.add('hidden');
                 document.getElementById('error-ui').classList.remove('hidden');
-                document.getElementById('error-message').textContent = "連線失敗，請確認網路或 Firebase 權限。";
+                document.getElementById('error-message').textContent = "連線失敗，請檢查網路。";
             }
         }
 
         function loadData() {
-            const saved = localStorage.getItem('corin_scratch_v2');
+            const saved = localStorage.getItem('corin_scratch_v3'); 
             const today = new Date().toDateString();
             if (saved) {
                 state = JSON.parse(saved);
                 if (state.lastPlayedDate !== today) {
-                    state.count = 0;
-                    state.bonusCount = 0;
-                    state.hasSharedToday = false;
-                    state.lastPlayedDate = today;
+                    state.count = 0; state.bonusCount = 0;
+                    state.hasSharedToday = false; state.lastPlayedDate = today;
                 }
             } else {
                 state.lastPlayedDate = today;
             }
-            if (!localStorage.getItem('corin_uid')) {
-                localStorage.setItem('corin_uid', Math.random().toString(36).substring(2, 8).toUpperCase());
-            }
+            if (!state.prizePool || state.prizePool.length === 0) state.prizePool = [...DEFAULT_PRIZE_POOL];
+            if (!localStorage.getItem('corin_uid')) localStorage.setItem('corin_uid', Math.random().toString(36).substring(2, 8).toUpperCase());
             document.getElementById('user-id-display').innerText = `UID: ${localStorage.getItem('corin_uid')}`;
             saveData();
         }
 
-        function saveData() { localStorage.setItem('corin_scratch_v2', JSON.stringify(state)); }
+        function saveData() { localStorage.setItem('corin_scratch_v3', JSON.stringify(state)); }
 
         function updateUI() {
             const totalMax = INITIAL_CHANCES + state.bonusCount;
             const remaining = Math.max(0, totalMax - state.count);
             const isLocked = remaining <= 0;
-
             document.getElementById('remaining-count').innerText = remaining;
-            
             if (isLocked) {
                 document.getElementById('game-area').classList.add('hidden');
                 document.getElementById('hint-text').classList.add('hidden');
                 document.getElementById('locked-overlay').classList.remove('hidden');
                 document.getElementById('action-buttons').classList.add('hidden');
-
-                const titleEl = document.getElementById('locked-title');
-                const descEl = document.getElementById('locked-desc');
-                const btnEl = document.getElementById('locked-share-btn');
-
+                const titleEl = document.getElementById('locked-title'), descEl = document.getElementById('locked-desc'), btnEl = document.getElementById('locked-share-btn');
                 if (state.hasSharedToday) {
-                    titleEl.innerText = "今日次數已用完";
-                    descEl.innerText = "請明日再來！";
-                    btnEl.classList.add('hidden');
+                    titleEl.innerText = "今日次數已用完"; descEl.innerText = "請明日再來！"; btnEl.classList.add('hidden');
                 } else {
-                    titleEl.innerText = "今日抽獎已結束";
-                    descEl.innerHTML = '分享好友可額外獲得 <span class="text-pink-600 font-bold">2</span> 次機會';
-                    btnEl.classList.remove('hidden');
+                    titleEl.innerText = "今日抽獎已結束"; descEl.innerHTML = '分享可得 <span class="text-pink-600 font-bold">2</span> 次機會'; btnEl.classList.remove('hidden');
                 }
             } else {
                 document.getElementById('game-area').classList.remove('hidden');
                 document.getElementById('hint-text').classList.remove('hidden');
                 document.getElementById('locked-overlay').classList.add('hidden');
-                
-                if (state.count > 0 && canvas && canvas.style.opacity === '0') {
-                    document.getElementById('action-buttons').classList.remove('hidden');
-                }
+                if (state.count > 0 && canvas && canvas.style.opacity === '0') document.getElementById('action-buttons').classList.remove('hidden');
             }
-
             const dots = document.getElementById('chance-dots');
             if (dots) {
                 dots.innerHTML = '';
@@ -379,287 +379,185 @@
         }
 
         function setupScratch() {
-            isPrizeGenerated = false;
             document.getElementById('scratch-box').classList.remove('big-win-glow');
             document.getElementById('prize-name').classList.remove('prize-text-anim');
             document.getElementById('top-prize-banner').classList.add('hidden');
             document.getElementById('normal-prize-banner').classList.remove('hidden');
-            
             canvas = document.getElementById('scratch-canvas');
             ctx = canvas.getContext('2d', { willReadFrequently: true });
             const box = document.getElementById('scratch-box');
-            
-            const containerWidth = box.offsetWidth || 300;
-            const containerHeight = box.offsetHeight || 160;
-            
-            canvas.width = containerWidth;
-            canvas.height = containerHeight;
-            canvas.style.opacity = '1';
-            canvas.style.pointerEvents = 'auto';
-
-            ctx.fillStyle = '#CCCCCC';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            for(let i=0; i<100; i++){
-                ctx.fillStyle = 'rgba(255,255,255,0.2)';
-                ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 2, 2);
-            }
-
-            ctx.fillStyle = '#888888';
-            ctx.font = 'bold 16px sans-serif';
-            ctx.textAlign = 'center';
+            canvas.width = box.offsetWidth || 300;
+            canvas.height = box.offsetHeight || 160;
+            canvas.style.opacity = '1'; canvas.style.pointerEvents = 'auto';
+            ctx.fillStyle = '#CCCCCC'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            for(let i=0; i<100; i++){ ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(Math.random()*canvas.width, Math.random()*canvas.height, 2, 2); }
+            ctx.fillStyle = '#888888'; ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
             ctx.fillText('刮開領取驚喜', canvas.width/2, canvas.height/2 + 6);
-
-            const start = (e) => { 
-                painting = true; 
-                if(!isPrizeGenerated) preparePrize();
-                scratch(e); 
-            };
+            const start = (e) => { painting = true; if(!window.isPrizeGenerated) preparePrize(); scratch(e); };
             const end = () => { painting = false; checkProgress(); };
-            
             canvas.addEventListener('mousedown', start);
             canvas.addEventListener('touchstart', (e) => { e.preventDefault(); start(e); }, {passive: false});
             window.addEventListener('mousemove', scratch);
             window.addEventListener('touchmove', (e) => { if(painting) e.preventDefault(); scratch(e); }, {passive: false});
             window.addEventListener('mouseup', end);
             window.addEventListener('touchend', end);
-        }
-
-        function getRandomPrize() {
-            const totalWeight = PRIZE_POOL.reduce((sum, prize) => sum + prize.weight, 0);
-            let random = Math.random() * totalWeight;
-            for (const prize of PRIZE_POOL) {
-                if (random < prize.weight) return prize.name;
-                random -= prize.weight;
-            }
-            return PRIZE_POOL[PRIZE_POOL.length - 1].name;
+            window.isPrizeGenerated = false;
         }
 
         function preparePrize() {
-            const prizeName = getRandomPrize();
-            const now = Date.now();
-            const exp = now + (EXPIRY_DAYS * 86400000);
-
-            window.currentPrize = {
-                id: Math.random().toString(36).substring(2, 9).toUpperCase(),
-                name: prizeName,
-                winDate: now,
-                expDate: exp,
-                isRedeemed: false
-            };
-
+            const totalWeight = state.prizePool.reduce((sum, p) => sum + Number(p.weight), 0);
+            let random = Math.random() * totalWeight, prizeName = state.prizePool[0].name;
+            for (const p of state.prizePool) { if (random < p.weight) { prizeName = p.name; break; } random -= p.weight; }
+            const now = Date.now(), exp = now + (EXPIRY_DAYS * 86400000);
+            window.currentPrize = { id: Math.random().toString(36).substring(2, 9).toUpperCase(), name: prizeName, winDate: now, expDate: exp, isRedeemed: false };
             document.getElementById('prize-name').innerText = prizeName;
             document.getElementById('verification-time').innerText = `刮開時間：${new Date().toLocaleString()}`;
             document.getElementById('expiry-date').innerText = `有效至：${new Date(exp).toLocaleDateString()}`;
             document.getElementById('prize-content').style.opacity = '1';
-            isPrizeGenerated = true;
+            window.isPrizeGenerated = true;
         }
 
         function scratch(e) {
             if (!painting) return;
             const rect = canvas.getBoundingClientRect();
-            const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-            const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.beginPath();
-            ctx.arc(x, y, 20, 0, Math.PI * 2);
-            ctx.fill();
+            const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left, y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+            ctx.globalCompositeOperation = 'destination-out'; ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2); ctx.fill();
         }
 
         function checkProgress() {
-            if (!canvas || canvas.width === 0 || canvas.height === 0 || canvas.style.opacity === '0') return;
-            
-            try {
-                const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                let clear = 0;
-                for (let i = 3; i < pixels.length; i += 40) { if (pixels[i] === 0) clear++; }
-                if (clear > (pixels.length / 40) * 0.45) finishScratch();
-            } catch (err) {
-                console.warn("getImageData access issue:", err);
-            }
+            if (!canvas || canvas.width === 0 || canvas.style.opacity === '0') return;
+            const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+            let clear = 0; for (let i = 3; i < pixels.length; i += 40) { if (pixels[i] === 0) clear++; }
+            if (clear > (pixels.length / 40) * 0.45) finishScratch();
         }
 
         function finishScratch() {
-            canvas.style.pointerEvents = 'none';
-            canvas.style.opacity = '0';
-            canvas.style.transition = 'opacity 0.5s ease-out';
-
+            canvas.style.pointerEvents = 'none'; canvas.style.opacity = '0'; canvas.style.transition = 'opacity 0.5s ease-out';
             const prizeName = window.currentPrize ? window.currentPrize.name : "";
-            const isTopPrize = prizeName.includes("1獎") || prizeName.includes("2獎") || prizeName.includes("3獎");
-
-            if (window.currentPrize) {
-                state.prizes.push(window.currentPrize);
-                state.count++;
-                saveData();
-                window.currentPrize = null;
-            }
-
+            const isTopPrize = prizeName.includes("1獎") || prizeName.includes("2獎") || prizeName.includes("3獎") || prizeName.includes("加碼金 $1000");
+            if (window.currentPrize) { state.prizes.push(window.currentPrize); state.count++; saveData(); window.currentPrize = null; }
             updateUI();
-
             if (isTopPrize) {
                 document.getElementById('scratch-box').classList.add('big-win-glow');
                 document.getElementById('prize-name').classList.add('prize-text-anim');
                 document.getElementById('top-prize-banner').classList.remove('hidden');
                 document.getElementById('normal-prize-banner').classList.add('hidden');
-                
-                const end = Date.now() + 2000;
-                const colors = ['#fbbf24', '#f59e0b', '#ec4899', '#ffffff'];
-
+                const end = Date.now() + 2000, colors = ['#fbbf24', '#f59e0b', '#ec4899', '#ffffff'];
                 (function frame() {
                     confetti({ particleCount: 3, angle: 60, spread: 55, origin: { x: 0 }, colors: colors });
                     confetti({ particleCount: 3, angle: 120, spread: 55, origin: { x: 1 }, colors: colors });
                     if (Date.now() < end) requestAnimationFrame(frame);
                 }());
-            } else {
-                confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } });
-            }
-            
-            setTimeout(() => {
-                const totalMax = INITIAL_CHANCES + state.bonusCount;
-                if (state.count < totalMax) {
-                    document.getElementById('action-buttons').classList.remove('hidden');
-                }
-            }, 1000);
+            } else { confetti({ particleCount: 80, spread: 60, origin: { y: 0.6 } }); }
+            setTimeout(() => { if (state.count < INITIAL_CHANCES + state.bonusCount) document.getElementById('action-buttons').classList.remove('hidden'); }, 1000);
         }
 
-        window.resetGame = function() {
-            document.getElementById('prize-content').style.opacity = '0';
-            document.getElementById('action-buttons').classList.add('hidden');
-            setupScratch();
-            updateUI();
-        };
+        window.resetGame = () => { document.getElementById('prize-content').style.opacity = '0'; document.getElementById('action-buttons').classList.add('hidden'); setupScratch(); updateUI(); };
 
-        window.shareToFriends = async function() {
-            const shareData = {
-                title: 'Corin Beauty 官方刮刮樂活動',
-                text: '我剛刮中了 Corin Beauty 的獎項！你也快來試試好運領取美肌優惠！',
-                url: window.location.href
-            };
-            
+        window.shareToFriends = async () => {
+            const shareData = { title: 'Corin Beauty 官方刮刮樂活動', text: '我刮中了獎項！你也快來試試好運！', url: window.location.href };
             const grantBonus = () => {
-                if (!state.hasSharedToday) {
-                    state.bonusCount += SHARE_BONUS;
-                    state.hasSharedToday = true;
-                    saveData();
-                    document.getElementById('share-success-modal').classList.add('modal-active');
-                    updateUI(); 
-                    
-                    if (state.count > 0 && canvas && canvas.style.opacity === '0') {
-                        document.getElementById('action-buttons').classList.remove('hidden');
-                    }
-                } else {
-                    showMsg("今日已領取過分享獎勵囉！");
-                }
+                if (!state.hasSharedToday) { state.bonusCount += SHARE_BONUS; state.hasSharedToday = true; saveData(); document.getElementById('share-success-modal').classList.add('modal-active'); updateUI(); }
+                else { showMsg("今日已領過分享獎勵囉！"); }
             };
-
-            try {
-                if (navigator.share) {
-                    await navigator.share(shareData);
-                    grantBonus();
-                } else {
-                    await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
-                    showMsg("連結已複製，快貼給好友吧！");
-                    grantBonus();
-                }
-            } catch (err) { 
-                grantBonus();
-            }
+            try { if (navigator.share) { await navigator.share(shareData); grantBonus(); } else { await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`); showMsg("連結已複製！"); grantBonus(); } } catch (err) { grantBonus(); }
         };
 
-        window.switchTab = function(t) {
+        window.switchTab = (t) => {
             const isGame = t === 'game';
-            document.getElementById('page-game').classList.toggle('hidden', !isGame);
-            document.getElementById('page-history').classList.toggle('hidden', isGame);
+            document.getElementById('page-game').classList.toggle('hidden', !isGame); document.getElementById('page-history').classList.toggle('hidden', isGame);
             document.getElementById('tab-game').className = isGame ? 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-white shadow-sm text-pink-600' : 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-400';
             document.getElementById('tab-history').className = !isGame ? 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-white shadow-sm text-pink-600' : 'px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-gray-400';
             if(!isGame) renderHistory();
         };
 
         function renderHistory() {
-            const list = document.getElementById('history-list');
-            list.innerHTML = '';
-            const now = Date.now();
-            const validPrizes = state.prizes.filter(p => !p.isRedeemed && now <= p.expDate);
-            const invalidPrizes = state.prizes.filter(p => p.isRedeemed || now > p.expDate);
-
-            document.getElementById('count-valid').innerText = validPrizes.length;
-            document.getElementById('count-invalid').innerText = invalidPrizes.length;
-
-            if(state.prizes.length === 0) {
-                list.innerHTML = '<div class="py-12 text-center text-gray-400 text-sm">尚未有中獎紀錄</div>';
-                return;
-            }
-
-            const createSection = (title, items, isInvalid) => {
+            const list = document.getElementById('history-list'); list.innerHTML = ''; const now = Date.now();
+            const valid = state.prizes.filter(p => !p.isRedeemed && now <= p.expDate), invalid = state.prizes.filter(p => p.isRedeemed || now > p.expDate);
+            document.getElementById('count-valid').innerText = valid.length; document.getElementById('count-invalid').innerText = invalid.length;
+            if(state.prizes.length === 0) { list.innerHTML = '<div class="py-12 text-center text-gray-400 text-sm">尚未有中獎紀錄</div>'; return; }
+            const createSection = (title, items, isInv) => {
                 if (items.length === 0) return '';
-                let html = `<div class="mb-8"><div class="flex items-center gap-2 mb-3"><div class="h-4 w-1 rounded-full ${isInvalid ? 'bg-gray-300' : 'bg-pink-500'}"></div><h3 class="text-xs font-black ${isInvalid ? 'text-gray-400' : 'text-gray-800'} uppercase tracking-widest">${title}</h3></div>`;
+                let html = `<div class="mb-8"><div class="flex items-center gap-2 mb-3"><div class="h-4 w-1 rounded-full ${isInv ? 'bg-gray-300' : 'bg-pink-500'}"></div><h3 class="text-xs font-black ${isInv ? 'text-gray-400' : 'text-gray-800'} uppercase tracking-widest">${title}</h3></div>`;
                 [...items].reverse().forEach(p => {
-                    const isExpired = now > p.expDate && !p.isRedeemed;
-                    html += `<div class="p-4 rounded-2xl border mb-3 transition-all ${p.isRedeemed || isExpired ? 'bg-gray-50 border-gray-100 opacity-70' : 'bg-white border-pink-100 shadow-sm'}"><div class="flex justify-between items-start mb-1"><span class="text-[9px] text-gray-400 font-mono">ID: ${p.id}</span><span class="text-[10px] font-bold ${p.isRedeemed ? 'text-gray-400' : (isExpired ? 'text-rose-400' : 'text-emerald-500')}">${p.isRedeemed ? '已使用' : (isExpired ? '已逾期' : '有效')}</span></div><div class="font-bold text-gray-800 text-sm mb-2">${p.name}</div><div class="flex justify-between items-end"><span class="text-[9px] text-gray-400">有效至：${new Date(p.expDate).toLocaleDateString()}</span>${(!p.isRedeemed && !isExpired) ? `<button onclick="redeem('${p.id}')" class="px-4 py-1.5 bg-pink-600 text-white rounded-lg text-xs font-bold shadow-md active:scale-95">兌換</button>` : ''}</div></div>`;
+                    const isExp = now > p.expDate && !p.isRedeemed;
+                    html += `<div class="p-4 rounded-2xl border mb-3 transition-all ${p.isRedeemed || isExp ? 'bg-gray-50 border-gray-100 opacity-70' : 'bg-white border-pink-100 shadow-sm'}"><div class="flex justify-between items-start mb-1"><span class="text-[9px] text-gray-400 font-mono">ID: ${p.id}</span><span class="text-[10px] font-bold ${p.isRedeemed ? 'text-gray-400' : (isExp ? 'text-rose-400' : 'text-emerald-500')}">${p.isRedeemed ? '已使用' : (isExp ? '已逾期' : '有效')}</span></div><div class="font-bold text-gray-800 text-sm mb-2">${p.name}</div><div class="flex justify-between items-end"><span class="text-[9px] text-gray-400">有效至：${new Date(p.expDate).toLocaleDateString()}</span>${(!p.isRedeemed && !isExp) ? `<button onclick="redeem('${p.id}')" class="px-4 py-1.5 bg-pink-600 text-white rounded-lg text-xs font-bold shadow-md">兌換</button>` : ''}</div></div>`;
                 });
-                html += '</div>';
-                return html;
+                return html + '</div>';
             };
-            list.innerHTML = createSection('可用獎項', validPrizes, false) + createSection('過期或已使用', invalidPrizes, true);
+            list.innerHTML = createSection('可用獎項', valid, false) + createSection('過期或已使用', invalid, true);
         }
 
-        window.redeem = function(id) {
-            const p = state.prizes.find(x => x.id === id);
-            if(!p) return;
+        window.redeem = (id) => {
+            const p = state.prizes.find(x => x.id === id); if(!p) return;
             document.getElementById('redeem-confirm-modal').classList.add('modal-active');
-            document.getElementById('confirm-redeem-btn').onclick = () => {
-                p.isRedeemed = true;
-                saveData();
-                renderHistory();
-                closeModal('redeem-confirm-modal');
-            };
+            document.getElementById('confirm-redeem-btn').onclick = () => { p.isRedeemed = true; saveData(); renderHistory(); closeModal('redeem-confirm-modal'); };
         };
 
-        window.openAdmin = function() {
+        // --- 管理員與獎項池邏輯 ---
+        window.openAdmin = (mode) => {
+            currentAdminMode = mode;
             document.getElementById('admin-pass').value = "";
+            document.getElementById('admin-modal-title').innerText = mode === 'reset' ? "管理員重置次數" : "獎項後台登入";
             document.getElementById('admin-modal').classList.add('modal-active');
         };
 
-        window.verifyAdmin = function() {
-            const pass = document.getElementById('admin-pass').value;
-            if (pass === "1016") {
-                state.count = 0;
-                state.bonusCount = 0;
-                state.hasSharedToday = false;
-                saveData();
+        window.verifyAdmin = () => {
+            if (document.getElementById('admin-pass').value === "1016") {
                 closeModal('admin-modal');
-                updateUI();
-                if (canvas.style.opacity === '0') resetGame();
-                showMsg("✅ 次數已重置歸零！");
-            } else {
-                showMsg("❌ 密碼錯誤");
-            }
+                if (currentAdminMode === 'reset') {
+                    state.count = 0; state.bonusCount = 0; state.hasSharedToday = false; saveData(); updateUI(); if (canvas.style.opacity === '0') resetGame();
+                    showMsg("✅ 次數已重置歸零！");
+                } else {
+                    openPrizeAdmin();
+                }
+            } else { showMsg("❌ 密碼錯誤"); }
         };
 
-        window.showMsg = function(text) {
-            document.getElementById('msg-text').innerText = text;
-            document.getElementById('msg-modal').classList.add('modal-active');
-        };
+        function openPrizeAdmin() {
+            renderPrizeManageList();
+            document.getElementById('prize-admin-modal').classList.add('modal-active');
+        }
 
-        window.closeModal = function(id) { document.getElementById(id).classList.remove('modal-active'); };
-        
-        window.handleReservation = function() { window.open("https://lin.ee/EeqKZ4u", "_blank"); };
+        function renderPrizeManageList() {
+            const container = document.getElementById('prize-manage-list');
+            container.innerHTML = '';
+            state.prizePool.forEach((p, index) => {
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-2 bg-white border border-gray-100 p-2 rounded-xl";
+                div.innerHTML = `
+                    <span class="flex-1 text-[11px] font-bold truncate">${p.name}</span>
+                    <input type="number" onchange="updatePrizeWeight(${index}, this.value)" value="${p.weight}" class="w-12 text-center border-b border-pink-200 text-[11px]" title="權重">
+                    <button onclick="deletePrize(${index})" class="text-rose-400 font-bold px-2">✕</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        window.updatePrizeWeight = (idx, val) => { state.prizePool[idx].weight = Number(val); };
+        window.deletePrize = (idx) => { if(state.prizePool.length <= 1) return showMsg("至少需保留一個獎項"); state.prizePool.splice(idx, 1); renderPrizeManageList(); };
+        window.addPrizeToPool = () => {
+            const name = document.getElementById('new-prize-name').value, weight = document.getElementById('new-prize-weight').value;
+            if(!name || !weight) return showMsg("請輸入完整名稱與權重");
+            state.prizePool.push({ name, weight: Number(weight) });
+            document.getElementById('new-prize-name').value = ''; document.getElementById('new-prize-weight').value = '';
+            renderPrizeManageList();
+        };
+        window.saveAndClosePrizeAdmin = () => { saveData(); closeModal('prize-admin-modal'); showMsg("✅ 獎項設定已儲存"); };
+
+        window.showMsg = (text) => { document.getElementById('msg-text').innerText = text; document.getElementById('msg-modal').classList.add('modal-active'); };
+        window.closeModal = (id) => { document.getElementById(id).classList.remove('modal-active'); };
+        window.handleReservation = () => { window.open("https://lin.ee/EeqKZ4u", "_blank"); };
 
         function startTimer() {
             const el = document.getElementById('countdown-timer');
             const tick = () => {
-                const now = new Date();
-                const mid = new Date(); mid.setHours(23, 59, 59, 999);
-                const diff = mid - now;
-                if(diff <= 0) { location.reload(); return; }
-                const h = String(Math.floor(diff/3600000)).padStart(2,'0');
-                const m = String(Math.floor((diff%3600000)/60000)).padStart(2,'0');
-                const s = String(Math.floor((diff%60000)/1000)).padStart(2,'0');
+                const now = new Date(), mid = new Date(); mid.setHours(23, 59, 59, 999);
+                const diff = mid - now; if(diff <= 0) { location.reload(); return; }
+                const h = String(Math.floor(diff/3600000)).padStart(2,'0'), m = String(Math.floor((diff%3600000)/60000)).padStart(2,'0'), s = String(Math.floor((diff%60000)/1000)).padStart(2,'0');
                 el.innerText = `RESET IN: ${h}:${m}:${s}`;
             };
-            tick();
-            setInterval(tick, 1000);
+            tick(); setInterval(tick, 1000);
         }
 
         initApp();
