@@ -263,6 +263,31 @@
         </div>
     </div>
 
+    <div id="gift-modal" class="fixed inset-0 bg-black/60 z-[350] hidden items-center justify-center p-6 backdrop-blur-sm">
+        <div class="bg-white rounded-[2rem] p-8 max-w-xs w-full text-center shadow-2xl">
+            <div class="w-16 h-16 bg-amber-50 text-[#b08d77] rounded-full flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner">🎁</div>
+            <h3 class="text-xl font-black text-[#181829] mb-2">轉贈獎項</h3>
+            <p class="text-xs text-gray-500 mb-4">請輸入收件人的會員電話</p>
+            
+            <div class="mb-4">
+                <input type="tel" id="gift-phone" class="w-full bg-gray-50 border border-gray-200 px-4 py-3 rounded-xl text-sm text-center outline-none focus:border-[#b08d77] transition-all" placeholder="輸入 10 碼電話" maxlength="10">
+            </div>
+            
+            <div id="gift-search-result" class="hidden mb-4 p-4 bg-[#fdfbf7] rounded-xl border border-amber-100 shadow-inner">
+                <p class="text-xs text-gray-500 mb-1">確認轉贈給：</p>
+                <p id="gift-recipient-name" class="font-black text-[#b08d77] text-xl tracking-widest"></p>
+            </div>
+            
+            <p id="gift-error" class="hidden text-xs text-rose-500 mb-4 font-bold"></p>
+
+            <div class="flex gap-2">
+                <button onclick="closeModal('gift-modal')" class="flex-1 py-3 bg-gray-100 text-gray-500 rounded-xl text-sm font-bold">取消</button>
+                <button id="gift-btn-search" onclick="checkGiftRecipient()" class="flex-1 py-3 btn-theme rounded-xl text-sm font-bold shadow-md">查找會員</button>
+                <button id="gift-btn-confirm" onclick="executeGift()" class="hidden flex-1 py-3 bg-emerald-500 text-white rounded-xl text-sm font-bold shadow-md">確認轉贈</button>
+            </div>
+        </div>
+    </div>
+
     <div id="admin-auth-modal" class="fixed inset-0 bg-black/80 z-[300] hidden items-center justify-center p-6 backdrop-blur-md">
         <div class="bg-white rounded-[2rem] p-8 max-w-xs w-full text-center shadow-2xl">
             <h3 class="text-xl font-black text-[#181829] mb-4">管理員驗證</h3>
@@ -366,6 +391,10 @@
         let app, auth, db;
         let state = { phone: '', name: '', prizePool: [], displayPrizes: [], userHistory: [], todayPlayed: 0 };
         let canvas, ctx, isSpinning = false, currentAngle = 0;
+        
+        let giftCurrentPrizeId = null;
+        let giftRecipientPhone = null;
+        let giftRecipientName = null;
 
         // --- 工具與 UI 控制 ---
         window.showLoading = () => document.getElementById('loading-overlay').classList.remove('hidden');
@@ -396,7 +425,7 @@
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                const modals = ['not-found-modal', 'limit-modal', 'result-overlay', 'confirm-modal', 'admin-auth-modal', 'admin-dashboard'];
+                const modals = ['not-found-modal', 'limit-modal', 'result-overlay', 'confirm-modal', 'gift-modal', 'admin-auth-modal', 'admin-dashboard'];
                 modals.forEach(id => {
                     const el = document.getElementById(id);
                     if(el && (el.classList.contains('modal-active') || el.classList.contains('flex'))) {
@@ -726,9 +755,13 @@
                 const isExp = now > p.expDate;
                 const isInvalid = p.isRedeemed || isExp;
                 
-                let redeemBtn = '';
+                let actionBtns = '';
                 if (!isInvalid) {
-                    redeemBtn = `<button onclick="askConfirm('店員核銷確認', '請交由現場人員點擊。核銷後即代表已兌換，無法恢復。', () => executeUserRedeem('${p.id}'))" class="mt-2 w-full py-2.5 bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-sm tracking-widest">店員核銷</button>`;
+                    actionBtns = `
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="openGiftModal('${p.id}')" class="flex-1 py-2.5 bg-white border border-[#b08d77] text-[#b08d77] rounded-lg text-xs font-bold shadow-sm tracking-widest hover:bg-amber-50 transition-colors">轉贈</button>
+                        <button onclick="askConfirm('店員核銷確認', '請交由現場人員點擊。核銷後即代表已兌換，無法恢復。', () => executeUserRedeem('${p.id}'))" class="flex-1 py-2.5 bg-emerald-500 text-white rounded-lg text-xs font-bold shadow-sm tracking-widest">店員核銷</button>
+                    </div>`;
                 }
 
                 const card = document.createElement('div');
@@ -741,11 +774,111 @@
                     <div class="font-bold text-[#b08d77] text-sm mb-2">${p.prizeName}</div>
                     <div class="text-[9px] text-gray-400">有效至：${new Date(p.expDate).toLocaleDateString('zh-TW')}</div>
                     ${p.isRedeemed ? `<div class="text-[9px] text-emerald-500 mt-1">核銷時間：${new Date(p.redeemTime).toLocaleString('zh-TW')}</div>` : ''}
-                    ${redeemBtn}
+                    ${actionBtns}
                 `;
                 list.appendChild(card);
             });
         }
+
+        window.openGiftModal = (prizeId) => {
+            giftCurrentPrizeId = prizeId;
+            document.getElementById('gift-phone').value = '';
+            document.getElementById('gift-phone').disabled = false;
+            document.getElementById('gift-search-result').classList.add('hidden');
+            document.getElementById('gift-error').classList.add('hidden');
+            document.getElementById('gift-btn-search').classList.remove('hidden');
+            document.getElementById('gift-btn-confirm').classList.add('hidden');
+            document.getElementById('gift-modal').classList.add('modal-active');
+        };
+
+        window.checkGiftRecipient = async () => {
+            const phone = document.getElementById('gift-phone').value.trim();
+            if(!phone || phone.length !== 10) {
+                document.getElementById('gift-error').innerText = "請輸入完整 10 碼電話";
+                document.getElementById('gift-error').classList.remove('hidden');
+                return;
+            }
+            if(phone === state.phone) {
+                document.getElementById('gift-error').innerText = "❌ 不能轉贈給自己！";
+                document.getElementById('gift-error').classList.remove('hidden');
+                return;
+            }
+
+            showLoading();
+            document.getElementById('gift-error').classList.add('hidden');
+            try {
+                const membersRef = collection(db, 'artifacts', APP_ID, 'public', 'data', 'beauty_members');
+                const q = query(membersRef, where('phone', '==', phone));
+                const snap = await getDocs(q);
+                
+                if (snap.empty) {
+                    document.getElementById('gift-error').innerText = "❌ 查無此會員，請確認電話號碼是否正確。";
+                    document.getElementById('gift-error').classList.remove('hidden');
+                } else {
+                    const recipient = snap.docs[0].data();
+                    giftRecipientPhone = phone;
+                    giftRecipientName = recipient.name || '會員';
+                    
+                    // 遮蔽名字中間字元 (如: 陳大明 -> 陳＊明, 王大 -> 王＊)
+                    const nameMask = giftRecipientName.length >= 2 
+                        ? giftRecipientName[0] + '＊' + (giftRecipientName.substring(2) || '') 
+                        : giftRecipientName;
+                    
+                    document.getElementById('gift-recipient-name').innerText = nameMask;
+                    document.getElementById('gift-search-result').classList.remove('hidden');
+                    
+                    document.getElementById('gift-phone').disabled = true;
+                    document.getElementById('gift-btn-search').classList.add('hidden');
+                    document.getElementById('gift-btn-confirm').classList.remove('hidden');
+                }
+            } catch(e) {
+                console.error(e);
+                document.getElementById('gift-error').innerText = "系統搜尋發生錯誤，請稍後再試。";
+                document.getElementById('gift-error').classList.remove('hidden');
+            }
+            hideLoading();
+        };
+
+        window.executeGift = async () => {
+            if(!giftCurrentPrizeId || !giftRecipientPhone) return;
+            
+            showLoading();
+            try {
+                // 取得原獎項資料
+                const prizeIdx = state.userHistory.findIndex(p => p.id === giftCurrentPrizeId);
+                if (prizeIdx === -1) throw new Error("找不到該獎項");
+                const prizeData = { ...state.userHistory[prizeIdx] };
+                
+                // 更新擁有人資訊
+                prizeData.phone = giftRecipientPhone;
+                prizeData.name = giftRecipientName;
+                
+                const oldRef = doc(db, 'artifacts', APP_ID, 'users', state.phone, 'prizes', giftCurrentPrizeId);
+                const newRef = doc(db, 'artifacts', APP_ID, 'users', giftRecipientPhone, 'prizes', giftCurrentPrizeId);
+                
+                // 確認收件人資料夾存在，寫入新擁有者並刪除原擁有者紀錄
+                await setDoc(doc(db, 'artifacts', APP_ID, 'users', giftRecipientPhone), { lastActive: Date.now(), name: giftRecipientName }, { merge: true });
+                await setDoc(newRef, prizeData);
+                await deleteDoc(oldRef);
+                
+                // 更新公開統計日誌裡的擁有人
+                try {
+                    await updateDoc(doc(db, 'artifacts', APP_ID, 'public', 'data', 'slot_logs', giftCurrentPrizeId), { phone: giftRecipientPhone, name: giftRecipientName });
+                } catch(e) { console.log("日誌權限限制，但不影響轉贈", e); }
+                
+                // 移除本地的陣列並重新渲染UI
+                state.userHistory.splice(prizeIdx, 1);
+                renderHistoryUI();
+                
+                closeModal('gift-modal');
+                showToast("🎁 獎項已成功轉贈！");
+                
+            } catch(e) {
+                console.error("轉贈錯誤:", e);
+                showToast("轉贈失敗，請確認權限或網路狀態。");
+            }
+            hideLoading();
+        };
 
         window.executeUserRedeem = async (prizeId) => {
             showLoading();
